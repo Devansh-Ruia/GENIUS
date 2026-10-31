@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VUS panel</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1b1f24;
+    --muted: #5b6470;
+    --line: #d5dae0;
+    --panel: #f5f7f9;
+    --very-high: #0b3d91;
+    --high: #6fa8dc;
+    --low: #f1c232;
+    --unresolved: #e69138;
+    --agree: #d9ead3;
+    --disagree: #f4cccc;
+    --na: #eeeeee;
+    --mock-bg: #b00020;
+    --mock-fg: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header, main { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 16px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; }
+  h3 { font-size: 1rem; margin: 0 0 8px; overflow-wrap: anywhere; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
+  .muted, .note { color: var(--muted); }
+  .note { font-size: 0.9rem; margin: 0 0 8px; }
+  .mock-banner { position: sticky; top: 0; z-index: 10; background: var(--mock-bg); color: var(--mock-fg); text-align: center; font-weight: 700; padding: 10px 16px; letter-spacing: 0.02em; }
+  .mock-banner[hidden] { display: none; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .controls form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+  .controls label { display: flex; flex-direction: column; font-size: 0.85rem; color: var(--muted); }
+  input, select, button { font: inherit; padding: 4px 8px; }
+  input[type="number"] { width: 9em; }
+  #chrom { width: 5em; }
+  button { cursor: pointer; }
+  #status { flex-basis: 100%; margin: 0; min-height: 1.4em; }
+  #status.error { color: var(--mock-bg); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .track-wrap { margin-bottom: 10px; }
+  .track { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+  .axis { stroke: var(--muted); stroke-width: 1.5; }
+  .tick { fill: var(--muted); font-size: 12px; }
+  .pt { stroke-width: 2; cursor: pointer; }
+  .pt.very-high { fill: var(--very-high); stroke: var(--very-high); }
+  .pt.high { fill: var(--high); stroke: var(--high); }
+  .pt.low { fill: var(--low); stroke: var(--low); }
+  .pt.unresolved { fill: var(--unresolved); stroke: var(--unresolved); }
+  .pt.hollow { fill: var(--bg); stroke-width: 3; }
+  .pt.selected { stroke: var(--fg); stroke-width: 3; }
+  .pt:focus { outline: none; stroke: var(--fg); stroke-width: 3; }
+  .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid transparent; }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; background: var(--bg); }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; font-size: 0.9rem; }
+  .matrix td { text-align: center; min-width: 7em; }
+  .matrix .agree { background: var(--agree); }
+  .matrix .disagree { background: var(--disagree); }
+  .matrix .na { background: var(--na); color: var(--muted); }
+  .matrix .self { font-weight: 600; }
+  .matrix .revised { outline: 2px dashed var(--unresolved); outline-offset: -4px; }
+  .stage-toggle { display: flex; gap: 12px; margin-bottom: 8px; font-size: 0.9rem; }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 12px; }
+  dl.facts dt { color: var(--muted); }
+  dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+  .mock-tag { display: inline-block; background: var(--mock-bg); color: var(--mock-fg); font-weight: 700; padding: 2px 8px; border-radius: 4px; margin: 0 0 8px; }
+  blockquote { margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--high); background: var(--bg); }
+  .card p { margin: 0 0 12px; }
+  .card h4 { margin: 12px 0 4px; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181c; --fg: #e8eaed; --muted: #a0a8b3; --line: #343a42; --panel: #1d2126;
+      --very-high: #3d7bff; --high: #8cc2f2; --agree: #29402a; --disagree: #4a2626; --na: #2a2e33;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="mock-banner" class="mock-banner" role="alert" hidden>MOCK DATA. At least one record on this page is mock and must not inform any decision.</div>
+<header>
+  <h1>VUS panel</h1>
+  <p class="muted">BRCA1 variant review for genetic counselors and lab variant curators.</p>
+</header>
+<main>
+  <section class="controls" aria-label="Load reports">
+    <button id="load-fixtures" type="button">Load fixtures</button>
+    <label>Load JSON file
+      <input id="load-file" type="file" accept="application/json,.json">
+    </label>
+    <form id="review-form">
+      <label>Chrom <input id="chrom" name="chrom" value="17" required></label>
+      <label>Position <input id="pos" name="pos" type="number" min="1" step="1" required></label>
+      <label>Ref
+        <select id="ref" name="ref"><option>A</option><option>C</option><option>G</option><option>T</option></select>
+      </label>
+      <label>Alt
+        <select id="alt" name="alt"><option>A</option><option>C</option><option selected>G</option><option>T</option></select>
+      </label>
+      <label>Build
+        <select id="build" name="genome_build"><option>GRCh37</option><option>GRCh38</option></select>
+      </label>
+      <button type="submit">Review variant</button>
+    </form>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section aria-labelledby="track-heading">
+    <h2 id="track-heading">Confidence track</h2>
+    <p class="note">Each genome build and chromosome gets its own track, so positions from different builds never share an axis. BRCA1 is on the minus strand, so the gene reads right to left here.</p>
+    <div id="legend" class="legend"></div>
+    <div id="tracks"><p class="muted">No reports loaded.</p></div>
+    <ul id="unplaced"></ul>
+  </section>
+
+  <section aria-labelledby="matrix-heading">
+    <h2 id="matrix-heading">Agent agreement</h2>
+    <div class="stage-toggle" role="radiogroup" aria-label="Findings stage">
+      <label><input type="radio" name="stage" value="initial"> Initial</label>
+      <label><input type="radio" name="stage" value="after" checked> After rebuttal</label>
+    </div>
+    <div id="matrix" class="table-scroll"></div>
+  </section>
+
+  <section aria-labelledby="card-heading">
+    <h2 id="card-heading">Counselor report</h2>
+    <div id="card" class="card"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// Report content (including LLM text) is only ever set through textContent
+// or setAttribute. Nothing here parses report data as HTML.
+
+const AGENTS = ["evo2", "sae", "conservation", "population"];
+const CALLS = new Set(["likely_damaging", "likely_tolerated", "unresolved"]);
+const CALL_LABEL = { likely_damaging: "Likely damaging", likely_tolerated: "Likely tolerated", unresolved: "Unresolved" };
+const ID_RE = /^(GRCh37|GRCh38)-([0-9XYMT]+)-([0-9]+)-([ACGT])-([ACGT])$/;
+const SVG_NS = "http://www.w3.org/2000/svg";
+const BANDS = [
+  ["very-high", "Very high (0.9 and above)"],
+  ["high", "High (0.7 to below 0.9)"],
+  ["low", "Low (below 0.7, or no confidence)"],
+  ["unresolved", "Unresolved"],
+];
+
+const state = { reports: [], selected: null, stage: "after" };
+
+function el(tag, attrs, text) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, String(value));
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+function svgEl(tag, attrs, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, String(value));
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+function setStatus(message, isError) {
+  const node = document.getElementById("status");
+  node.textContent = message;
+  node.className = isError ? "error" : "";
+}
+
+function band(report) {
+  if (report.call === "unresolved") return "unresolved";
+  if (typeof report.confidence !== "number") return "low";
+  if (report.confidence >= 0.9) return "very-high";
+  if (report.confidence >= 0.7) return "high";
+  return "low";
+}
+
+function isMock(report) {
+  return report.mock !== false;
+}
+
+function isReportShape(report) {
+  return Boolean(report) && typeof report === "object"
+    && typeof report.variant_id === "string"
+    && CALLS.has(report.call)
+    && Array.isArray(report.findings_initial)
+    && Array.isArray(report.findings_after_rebuttal);
+}
+
+function setReports(list, sourceLabel) {
+  if (!Array.isArray(list)) throw new Error("expected a JSON array of PanelReports");
+  const valid = list.filter(isReportShape);
+  state.reports = valid;
+  state.selected = valid.length ? 0 : null;
+  render();
+  const skipped = list.length - valid.length;
+  setStatus(`Loaded ${valid.length} report(s) from ${sourceLabel}${skipped ? `, skipped ${skipped} malformed` : ""}.`, false);
+}
+
+function current() {
+  return state.selected === null ? null : state.reports[state.selected] || null;
+}
+
+function select(index) {
+  state.selected = index;
+  render();
+}
+
+function render() {
+  document.getElementById("mock-banner").hidden = !state.reports.some(isMock);
+  renderLegend();
+  renderTracks();
+  renderMatrix();
+  renderCard();
+}
+
+function renderLegend() {
+  const host = document.getElementById("legend");
+  host.replaceChildren();
+  for (const [key, label] of BANDS) {
+    const item = el("span");
+    const swatch = el("span", { class: "swatch" });
+    swatch.style.background = `var(--${key})`;
+    item.append(swatch, document.createTextNode(label));
+    host.append(item);
+  }
+  const ring = el("span");
+  const hollow = el("span", { class: "swatch" });
+  hollow.style.border = "2px solid var(--muted)";
+  ring.append(hollow, document.createTextNode("Hollow ring: confidence not calibrated"));
+  host.append(ring);
+}
+
+function renderTracks() {
+  const host = document.getElementById("tracks");
+  const unplaced = document.getElementById("unplaced");
+  host.replaceChildren();
+  unplaced.replaceChildren();
+  if (!state.reports.length) {
+    host.append(el("p", { class: "muted" }, "No reports loaded."));
+    return;
+  }
+
+  const groups = new Map();
+  state.reports.forEach((report, index) => {
+    const match = ID_RE.exec(report.variant_id);
+    if (!match) {
+      unplaced.append(el("li", {}, `${report.variant_id}: not placed, ID is not BUILD-CHROM-POS-REF-ALT`));
+      return;
+    }
+    const key = `${match[1]} chr${match[2]}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ index, pos: Number(match[3]), report });
+  });
+
+  const width = 900, padX = 50, radius = 7, step = 2 * radius + 4;
+  for (const [key, points] of groups) {
+    points.sort((a, b) => a.pos - b.pos);
+    let lo = points[0].pos, hi = points[points.length - 1].pos;
+    if (lo === hi) { lo -= 50; hi += 50; }
+    const x = (pos) => padX + ((pos - lo) / (hi - lo)) * (width - 2 * padX);
+
+    // Stack markers that would overlap into rows above the axis.
+    const rowEnds = [];
+    for (const point of points) {
+      point.cx = x(point.pos);
+      let row = rowEnds.findIndex((end) => point.cx - end >= step);
+      if (row === -1) { row = rowEnds.length; rowEnds.push(point.cx); } else { rowEnds[row] = point.cx; }
+      point.row = row;
+    }
+    const axisY = 20 + rowEnds.length * step;
+    const height = axisY + 30;
+
+    const wrap = el("div", { class: "track-wrap" });
+    wrap.append(el("h3", {}, key));
+    const root = svgEl("svg", { class: "track", viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": `Confidence track for ${key}` });
+    root.append(svgEl("line", { class: "axis", x1: padX, x2: width - padX, y1: axisY, y2: axisY }));
+    root.append(svgEl("text", { class: "tick", x: padX, y: axisY + 20, "text-anchor": "start" }, lo.toLocaleString("en-US")));
+    root.append(svgEl("text", { class: "tick", x: width - padX, y: axisY + 20, "text-anchor": "end" }, hi.toLocaleString("en-US")));
+
+    for (const point of points) {
+      const report = point.report;
+      const classes = ["pt", band(report)];
+      if (report.calibrated !== true) classes.push("hollow");
+      if (point.index === state.selected) classes.push("selected");
+      const cy = axisY - radius - 4 - point.row * step;
+      const circle = svgEl("circle", { class: classes.join(" "), cx: point.cx, cy, r: radius, tabindex: 0, role: "button" });
+      const confidence = typeof report.confidence === "number" ? report.confidence.toFixed(2) : "none";
+      const label = `${report.variant_id}: ${CALL_LABEL[report.call]}, confidence ${confidence}, ${report.calibrated === true ? "calibrated" : "not calibrated"}${isMock(report) ? ", MOCK" : ""}`;
+      circle.setAttribute("aria-label", label);
+      circle.append(svgEl("title", {}, label));
+      circle.addEventListener("click", () => select(point.index));
+      circle.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(point.index); }
+      });
+      root.append(circle);
+    }
+    wrap.append(root);
+    host.append(wrap);
+  }
+}
+
+function findingsByAgent(report, stage) {
+  const list = stage === "initial" ? report.findings_initial : report.findings_after_rebuttal;
+  const map = new Map();
+  for (const finding of list) {
+    if (finding && typeof finding.agent === "string") map.set(finding.agent, finding);
+  }
+  return map;
+}
+
+function wasRevised(report, agent) {
+  const before = findingsByAgent(report, "initial").get(agent);
+  const after = findingsByAgent(report, "after").get(agent);
+  return Boolean(before && after && before.status === "ok" && after.status === "ok" && before.verdict !== after.verdict);
+}
+
+function renderMatrix() {
+  const host = document.getElementById("matrix");
+  host.replaceChildren();
+  const report = current();
+  if (!report) {
+    host.append(el("p", { class: "muted" }, "Select a variant to see agent agreement."));
+    return;
+  }
+  const findings = findingsByAgent(report, state.stage);
+  if (!AGENTS.some((agent) => findings.has(agent))) {
+    host.append(el("p", { class: "muted" }, "This report has no panel findings, for example a single-agent baseline report."));
+    return;
+  }
+
+  const table = el("table", { class: "matrix" });
+  table.append(el("caption", { class: "note" }, `${report.variant_id}, ${state.stage === "initial" ? "initial findings" : "after rebuttal"}`));
+  const head = el("tr");
+  head.append(el("th", { scope: "col" }, ""));
+  for (const agent of AGENTS) head.append(el("th", { scope: "col" }, agent));
+  const thead = el("thead");
+  thead.append(head);
+  const tbody = el("tbody");
+
+  for (const rowAgent of AGENTS) {
+    const row = el("tr");
+    row.append(el("th", { scope: "row" }, rowAgent));
+    for (const colAgent of AGENTS) {
+      const a = findings.get(rowAgent);
+      const b = findings.get(colAgent);
+      let text, cls;
+      if (rowAgent === colAgent) {
+        text = !a ? "absent" : a.status === "ok" ? a.verdict : a.status;
+        cls = "self";
+        if (wasRevised(report, rowAgent)) { text += " (revised in rebuttal)"; cls += " revised"; }
+      } else if (a && b && a.status === "ok" && b.status === "ok") {
+        const same = a.verdict === b.verdict;
+        text = same ? "agree" : "disagree";
+        cls = same ? "agree" : "disagree";
+      } else {
+        text = "not comparable";
+        cls = "na";
+      }
+      row.append(el("td", { class: cls }, text));
+    }
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  host.append(table);
+}
+
+function fact(dl, term, value) {
+  dl.append(el("dt", {}, term), el("dd", {}, value));
+}
+
+function findingsTable(list) {
+  const wrap = el("div", { class: "table-scroll" });
+  const table = el("table");
+  const head = el("tr");
+  for (const name of ["Agent", "Status", "Verdict", "Rationale", "Raw values", "Sources", "Revision reason"]) {
+    head.append(el("th", { scope: "col" }, name));
+  }
+  const thead = el("thead");
+  thead.append(head);
+  const tbody = el("tbody");
+  for (const f of list) {
+    const row = el("tr");
+    const raw = f && f.raw_values && Object.keys(f.raw_values).length ? JSON.stringify(f.raw_values) : "";
+    const sources = f && Array.isArray(f.sources) ? f.sources.join(", ") : "";
+    for (const value of [f.agent, f.status, f.verdict || "", f.rationale, raw, sources, f.revision_reason || ""]) {
+      row.append(el("td", {}, value === undefined || value === null ? "" : value));
+    }
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  wrap.append(table);
+  return wrap;
+}
+
+function renderCard() {
+  const host = document.getElementById("card");
+  host.replaceChildren();
+  const report = current();
+  if (!report) {
+    host.append(el("p", { class: "muted" }, "Select a variant to see its report."));
+    return;
+  }
+  if (isMock(report)) host.append(el("p", { class: "mock-tag" }, "MOCK record"));
+  host.append(el("h3", {}, report.variant_id));
+
+  const facts = el("dl", { class: "facts" });
+  fact(facts, "Call", CALL_LABEL[report.call]);
+  fact(facts, "Confidence", typeof report.confidence === "number" ? report.confidence.toFixed(2) : "none");
+  fact(facts, "Calibrated", report.calibrated === true ? "yes" : "no");
+  const driving = Array.isArray(report.driving_agents) ? report.driving_agents : [];
+  fact(facts, "Driving agents", driving.length ? driving.join(", ") : "none");
+  host.append(facts);
+
+  host.append(el("h4", {}, "Conflicts"));
+  const conflicts = Array.isArray(report.conflicts) ? report.conflicts : [];
+  if (conflicts.length) {
+    const list = el("ul");
+    for (const conflict of conflicts) list.append(el("li", {}, conflict));
+    host.append(list);
+  } else {
+    host.append(el("p", { class: "muted" }, "none"));
+  }
+
+  host.append(el("h4", {}, "What would settle it"), el("p", {}, report.what_would_settle_it || ""));
+  host.append(el("h4", {}, "Counselor summary"), el("p", {}, report.counselor_summary || ""));
+  host.append(el("h4", {}, "Patient summary, for the counselor to share"));
+  host.append(el("blockquote", {}, report.patient_summary || ""));
+
+  host.append(el("h4", {}, "Findings before rebuttal"), findingsTable(report.findings_initial));
+  host.append(el("h4", {}, "Findings after rebuttal"), findingsTable(report.findings_after_rebuttal));
+}
+
+function describeError(body) {
+  if (body && Array.isArray(body.detail)) return body.detail.map((d) => (d && d.msg) || "invalid input").join("; ");
+  if (body && typeof body.detail === "string") return body.detail;
+  return "unknown error";
+}
+
+document.getElementById("load-fixtures").addEventListener("click", async () => {
+  try {
+    const response = await fetch("/fixtures");
+    if (!response.ok) throw new Error(`server returned ${response.status}`);
+    setReports(await response.json(), "fixtures");
+  } catch (error) {
+    setStatus(`Could not load fixtures: ${error.message}`, true);
+  }
+});
+
+document.getElementById("load-file").addEventListener("change", async (event) => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  try {
+    setReports(JSON.parse(await file.text()), file.name);
+  } catch (error) {
+    setStatus(`Could not load ${file.name}: ${error.message}`, true);
+  }
+});
+
+document.getElementById("review-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const body = {
+    chrom: document.getElementById("chrom").value.trim(),
+    pos: Number(document.getElementById("pos").value),
+    ref: document.getElementById("ref").value,
+    alt: document.getElementById("alt").value,
+    genome_build: document.getElementById("build").value,
+  };
+  setStatus("Reviewing...", false);
+  try {
+    const response = await fetch("/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      setStatus(`Review failed (${response.status}): ${describeError(data)}`, true);
+      return;
+    }
+    if (!isReportShape(data)) throw new Error("the server did not return a PanelReport");
+    state.reports.push(data);
+    select(state.reports.length - 1);
+    setStatus(`Reviewed ${data.variant_id}: ${CALL_LABEL[data.call]}.`, false);
+  } catch (error) {
+    setStatus(`Review failed: ${error.message}`, true);
+  }
+});
+
+for (const radio of document.querySelectorAll('input[name="stage"]')) {
+  radio.addEventListener("change", (event) => {
+    state.stage = event.target.value;
+    renderMatrix();
+  });
+}
+
+render();
+</script>
+</body>
+</html>

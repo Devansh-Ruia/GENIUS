@@ -1,1 +1,178 @@
 # GENIUS
+
+A multi-agent panel that reviews BRCA1 variants of uncertain significance. This repo is a hackathon scaffold: the contracts, stubs and wiring are in place, no model agent is implemented, and there are no results yet.
+
+## Problem
+
+Almost one in five genetic tests returns a variant of uncertain significance, or VUS (citation needed), and patients often read it as high cancer risk even though ACMG guidelines say no clinical decision should rest on a VUS.
+
+## Solution
+
+A panel of LLM agents reviews one BRCA1 single-nucleotide variant. Each agent is restricted to one evidence type:
+
+- `evo2`: log-likelihood delta (alt minus ref) from Evo 2 7B
+- `sae`: Goodfire SAE feature activations at the variant position on Evo 2 7B
+- `conservation`: per-base conservation score at the position, from a local cached file
+- `population`: gnomAD allele frequency, from a local cached file
+
+In the rebuttal round each evidence agent sees the other three findings, never their tools, and may revise its verdict once with a reason. Both versions are kept. A chair agent then reads the findings, never the tools, and returns a call, the evidence that drove it, conflicts, an explicit "unresolved" flag, what test would settle it, and a plain-language summary.
+
+A single agent with all four tools is the baseline for multi-agent against single-agent.
+
+## Who it's for
+
+Genetic counselors and lab variant curators. Patients read the summary the counselor hands them. The app never addresses patients directly.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    V["BRCA1 variant"] --> E1["evo2 agent"]
+    V --> E2["sae agent"]
+    V --> E3["conservation agent"]
+    V --> E4["population agent"]
+    E1 --> R["Rebuttal round: each agent sees the other three findings"]
+    E2 --> R
+    E3 --> R
+    E4 --> R
+    R --> C["Chair: findings only"]
+    C --> O["Output screen: confidence track, agreement matrix, counselor card"]
+```
+
+Each evidence agent imports only its own tool module. The orchestrator removes the Findlay answer-key fields before any agent sees the variant, and the chair receives the variant ID and two lists of findings, nothing else. `tests/test_isolation.py` enforces both.
+
+## Running locally
+
+You need [uv](https://docs.astral.sh/uv/). It fetches Python 3.11 if you don't have it.
+
+```bash
+uv venv --python 3.11
+uv pip install -e ".[dev]"
+```
+
+Run the tests (Windows path first, then macOS and Linux):
+
+```bash
+.venv/Scripts/python -m pytest -q
+.venv/bin/python -m pytest -q
+```
+
+Tests never reach the network. An autouse fixture in `tests/conftest.py` blocks socket connections and DNS lookups, clears the API variables, and points the data and run directories at a temporary folder.
+
+Serve the API and the page:
+
+```bash
+.venv/Scripts/python -m uvicorn vus_panel.api:app --reload
+```
+
+Open http://127.0.0.1:8000. "Load fixtures" shows the five mock reports under a MOCK DATA banner. The review form posts a variant to `POST /review`, which returns `call: "unresolved"` with four unavailable findings until the agents are implemented.
+
+Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. The app does not read `.env` itself, so export the values in your shell, for example `set -a; source .env; set +a` in bash.
+
+| Variable | Used for |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | agent LLM calls |
+| `ANTHROPIC_MODEL` | the model name, read at runtime and never hardcoded |
+| `EVO2_BACKEND_URL` | the GPU backend that serves Evo 2 7B and the SAE |
+
+Make the calibration/test split once the Findlay file is in place. Put `41586_2018_461_MOESM3_ESM.xlsx` from Findlay et al. 2018 in `data/raw/`. Nothing in this repo downloads it.
+
+```bash
+.venv/Scripts/python -m vus_panel.eval.split
+```
+
+Score a set of real (non-mock) reports on the test split:
+
+```bash
+.venv/Scripts/python -m vus_panel.eval.run_eval --reports path/to/reports.json --system panel
+```
+
+## Repo layout
+
+```
+README.md
+pyproject.toml
+.env.example              ANTHROPIC_API_KEY, ANTHROPIC_MODEL, EVO2_BACKEND_URL (empty)
+.gitignore                .env, data/raw/, data/cache/, runs/, Python tooling
+src/vus_panel/
+  schemas.py              the contracts below
+  config.py               repo paths and env getters
+  llm.py                  Anthropic client; model name from ANTHROPIC_MODEL
+  tools/                  one module per evidence source: evo2, sae, conservation, population
+  agents/                 evo2, sae, conservation, population, chair, single_agent
+  orchestrator.py         four agents, one rebuttal round, then the chair
+  eval/                   split.py, metrics.py, run_eval.py
+  api.py                  GET /, POST /review, GET /fixtures
+web/index.html            the output screen: vanilla JS, inline SVG, no build step
+data/splits/              committed variant-ID lists only
+data/fixtures/            mock PanelReports for UI work only
+runs/                     run outputs with config, seed, git commit, timestamp (not committed)
+tests/
+.claude/agents/           Claude Code subagents, one per workstream plus the checker
+.claude/hooks/            the checker's Bash guard
+```
+
+## Contracts
+
+The source of truth is `src/vus_panel/schemas.py`, tested in `tests/test_schemas.py`. Every model forbids extra fields and is frozen.
+
+- **Variant**: `chrom`, `pos`, `ref`, `alt`, `genome_build` (required, `"GRCh37"` or `"GRCh38"`), optional `hgvs_c`, `findlay_function_class`, `findlay_score`. `ref` and `alt` are single bases from ACGT and differ. `chrom` accepts `17` or `chr17` and stores `17`. The ID is `BUILD-CHROM-POS-REF-ALT`, for example `GRCh37-17-100-A-G`.
+- **AgentFinding**: `agent`, `variant_id`, `status` (`"ok"`, `"unavailable"` or `"error"`), `verdict` (`"damaging"`, `"tolerated"`, `"uncertain"` or null), `raw_values`, `rationale`, `sources`. `verdict` is null and `raw_values` is empty unless status is `"ok"`. Added here: an ok finding needs a verdict, and the optional `revision_reason` holds the rebuttal round's reason.
+- **PanelReport**: `variant_id`, `call` (`"likely_damaging"`, `"likely_tolerated"` or `"unresolved"`), `confidence` (in [0, 1] or null), `calibrated`, `driving_agents`, `conflicts`, `what_would_settle_it`, `counselor_summary`, `patient_summary`, `findings_initial`, `findings_after_rebuttal`, `mock`. Added here: `calibrated` is false when confidence is null, findings match the report's variant, both finding lists cover the same agents, driving agents had status ok after rebuttal, a call other than unresolved names at least one driving agent, and a changed verdict carries a `revision_reason`.
+- **RunRecord**: `run_id`, `git_commit`, `config`, `seed`, `started_at` (timezone-aware), `variant_ids`, `outputs_path`.
+- **Tool isolation**: each agent receives only its own tool functions. A test fails if any agent module imports another agent's tool module, directly or through a shared helper, and another checks that the chair receives findings only.
+
+Tools return a `ToolResult` with the same rule: no values unless status is `"ok"`. A missing backend or data file gives `"unavailable"` with a message naming what's missing and who owns it. A cache that exists only for the other genome build gives `"error"`, because there is no liftover step.
+
+## Branch ownership
+
+| Branch | Owner | Workstream | Subagent |
+| --- | --- | --- | --- |
+| d | Devansh | Evo 2 and SAE agents, GPU backend | evidence-models |
+| a | Teammate A | Conservation and population agents, data fetch | evidence-data |
+| k | Teammate K | Orchestrator, chair, single-agent baseline, eval | orchestration-eval |
+| m | Teammate M | API and output screen | frontend |
+
+Merge rule: PR into main, and run the checker subagent on the diff before merging.
+
+`schemas.py`, `tests/conftest.py` and `tests/test_isolation.py` are shared. Change them only in a PR the other owners have seen.
+
+## Evaluation plan
+
+- **Answer key**: the Findlay et al. 2018 saturation genome editing scores for 3,893 BRCA1 SNVs, as used in [NVIDIA's Evo 2 zero-shot BRCA1 notebook](https://docs.nvidia.com/bionemo-framework/2.5/user-guide/examples/bionemo-evo2/zeroshot_brca1/). Following that notebook, LOF is the positive class and FUNC plus INT are negative. Positions are hg19, so GRCh37.
+- **Split**: `eval/split.py` assigns variant IDs to calibration and test with seed 0, stratified by function class. The calibration fraction defaults to 0.2 and is a CLI flag. Only ID lists and a metadata file (seed, counts, the source file's sha256) are committed to `data/splits/`.
+- **Systems compared on the test split**: the panel, the single-agent baseline, and Evo 2 alone (the zero-shot delta, scored as minus delta as in the notebook).
+- **Discrimination**: AUROC on resolved variants, always reported together with coverage, the fraction not unresolved. A system can't look better by abstaining without that showing up in coverage.
+- **Calibration check**: reliability bins and expected calibration error on the test split. Any calibration is fit on the calibration split only, and a report sets `calibrated: true` only after that.
+- **Spread**: any standard deviation, for example across seeds, uses ddof=1.
+- **Guards**: `eval/run_eval.py` refuses records with `mock: true`, reports for variants outside the test split, and test-split findings that cite ClinVar. Each run writes `runs/<run_id>/run_record.json` (config, seed, git commit, timestamp) and `metrics.json`.
+
+## What is mocked and what is real right now
+
+Real and tested:
+- schemas and their validation
+- orchestrator wiring: four runs, four rebuttals, the chair, error capture, answer-key removal
+- the split code, tested on small placeholder workbooks but not yet on the real Findlay file
+- metrics and the eval guards
+- the API and the output screen
+
+Stubbed, always returning status `"unavailable"` and never a value:
+- all four tools
+- evidence agent interpretation and rebuttal revision
+- chair reasoning (every report is `"unresolved"`)
+- the single-agent baseline
+
+Mock: `data/fixtures/panel_reports.json` holds five reports, all `mock: true`, for UI work. The page shows a MOCK DATA banner whenever one is on screen.
+
+Not present yet: the Findlay file, cache files, split files and any run in `runs/`. No LLM call is made anywhere.
+
+## Known risks
+
+- **GPU access for evo2 and sae**: Evo 2 7B needs an FP8-capable GPU. Until a backend is up at `EVO2_BACKEND_URL`, both agents stay unavailable and the panel has two evidence types, not four.
+- **ClinVar leakage**: ClinVar must not be an input for any test-split variant. `run_eval` refuses findings that cite it, but an LLM may still recall ClinVar classifications for well-known BRCA1 variants from training, and a source check can't catch that.
+- **Genome-build mismatch**: Findlay positions are GRCh37, and some gnomAD releases are GRCh38. There is no liftover step, so the tools return an error instead of comparing positions across builds, and the page draws one track per build.
+- **Uncalibrated confidence**: a confidence an LLM states is not a probability. Reports carry `calibrated: false` until a calibration is fit on the calibration split, and the page draws those points as hollow rings.
+
+## Results
+
+No results yet.

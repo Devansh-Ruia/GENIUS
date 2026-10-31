@@ -1,0 +1,122 @@
+[
+  {
+    "variant_id": "GRCh37-17-41197710-C-T",
+    "call": "likely_damaging",
+    "confidence": 0.95,
+    "calibrated": true,
+    "driving_agents": ["evo2", "conservation"],
+    "conflicts": [],
+    "what_would_settle_it": "[MOCK] Already settled for this mock record. No real evidence behind it.",
+    "counselor_summary": "[MOCK] Very high confidence mock call. Placeholder text for UI work only.",
+    "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
+    "findings_initial": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "findings_after_rebuttal": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41197710-C-T", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "mock": true
+  },
+  {
+    "variant_id": "GRCh37-17-41215920-G-A",
+    "call": "likely_tolerated",
+    "confidence": 0.78,
+    "calibrated": true,
+    "driving_agents": ["population", "conservation"],
+    "conflicts": [],
+    "what_would_settle_it": "[MOCK] A functional assay result for this exact variant.",
+    "counselor_summary": "[MOCK] High confidence mock call. Placeholder text for UI work only.",
+    "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
+    "findings_initial": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "findings_after_rebuttal": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41215920-G-A", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "mock": true
+  },
+  {
+    "variant_id": "GRCh37-17-41243510-A-C",
+    "call": "likely_damaging",
+    "confidence": 0.55,
+    "calibrated": false,
+    "driving_agents": ["evo2"],
+    "conflicts": [],
+    "what_would_settle_it": "[MOCK] SAE features and a functional assay result for this exact variant.",
+    "counselor_summary": "[MOCK] Low confidence, uncalibrated mock call. Placeholder text for UI work only.",
+    "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
+    "findings_initial": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "findings_after_rebuttal": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "mock": true
+  },
+  {
+    "variant_id": "GRCh37-17-41256200-T-G",
+    "call": "unresolved",
+    "confidence": null,
+    "calibrated": false,
+    "driving_agents": [],
+    "conflicts": ["[MOCK] evo2 says damaging, population says tolerated"],
+    "what_would_settle_it": "[MOCK] A functional assay result for this exact variant.",
+    "counselor_summary": "[MOCK] Unresolved mock record. Placeholder text for UI work only.",
+    "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
+    "findings_initial": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41256200-T-G", "status": "error", "verdict": null, "raw_values": {}, "rationale": "[MOCK] cache build mismatch", "sources": [], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "findings_after_rebuttal": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41256200-T-G", "status": "error", "verdict": null, "raw_values": {}, "rationale": "[MOCK] cache build mismatch", "sources": [], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "mock": true
+  },
+  {
+    "variant_id": "GRCh37-17-41276100-A-G",
+    "call": "likely_tolerated",
+    "confidence": 0.72,
+    "calibrated": true,
+    "driving_agents": ["population", "evo2"],
+    "conflicts": ["[MOCK] sae said damaging before rebuttal, then revised to tolerated"],
+    "what_would_settle_it": "[MOCK] A functional assay result for this exact variant.",
+    "counselor_summary": "[MOCK] Mock record where one agent revised its verdict in rebuttal. Placeholder text for UI work only.",
+    "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
+    "findings_initial": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "damaging", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "findings_after_rebuttal": [
+      {"agent": "evo2", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale after rebuttal", "sources": ["mock"], "revision_reason": "[MOCK] placeholder revision reason"},
+      {"agent": "conservation", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null},
+      {"agent": "population", "variant_id": "GRCh37-17-41276100-A-G", "status": "ok", "verdict": "tolerated", "raw_values": {}, "rationale": "[MOCK] placeholder rationale", "sources": ["mock"], "revision_reason": null}
+    ],
+    "mock": true
+  }
+]

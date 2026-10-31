@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Data and run outputs that never get committed
+data/raw/
+data/cache/
+runs/
+
+# Python tooling
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+
+# Local browser-automation output
+.playwright-mcp/
