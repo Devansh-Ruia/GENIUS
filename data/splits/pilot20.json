@@ -1,0 +1,38 @@
+{
+  "algorithm": "sha256('pilot-v1:0:{variant_id}'), tie by ID; class quotas then combined hash order",
+  "calibration_sha256": "f17966cfdf4789d08d130d1ec82cfcf5aec53508ec6107bc80898c8ade73532a",
+  "class_counts": {
+    "FUNC": 7,
+    "INT": 6,
+    "LOF": 7
+  },
+  "created_at": "2026-10-31T19:35:28.554388+00:00",
+  "n_selected": 20,
+  "reference_sequence_sha256": "2463d54fb95c959a3fe545545fd11313986278881c7ded54721e172e7df1a41a",
+  "schema_version": 1,
+  "seed": 0,
+  "source_sha256": "e9aa4186b8a5de91d61059d03f8dac1e5573d1e2802f50a6581c3053d22b923a",
+  "split_meta_sha256": "6e779d5a38831d7b1ba95bae36a4c3904fea36bbcd71826b3d8f4d7ad99cb006",
+  "variant_ids": [
+    "GRCh37-17-41222979-G-A",
+    "GRCh37-17-41267807-A-G",
+    "GRCh37-17-41222989-T-G",
+    "GRCh37-17-41223022-G-C",
+    "GRCh37-17-41215407-A-C",
+    "GRCh37-17-41197760-C-G",
+    "GRCh37-17-41215400-T-C",
+    "GRCh37-17-41258478-G-A",
+    "GRCh37-17-41197729-T-C",
+    "GRCh37-17-41219625-C-A",
+    "GRCh37-17-41209129-A-C",
+    "GRCh37-17-41215921-C-T",
+    "GRCh37-17-41219715-G-C",
+    "GRCh37-17-41209067-A-T",
+    "GRCh37-17-41256911-G-C",
+    "GRCh37-17-41197783-C-T",
+    "GRCh37-17-41256977-A-T",
+    "GRCh37-17-41222942-C-A",
+    "GRCh37-17-41219623-A-T",
+    "GRCh37-17-41201172-A-T"
+  ]
+}

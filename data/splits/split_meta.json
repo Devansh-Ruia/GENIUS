@@ -1,0 +1,58 @@
+{
+  "algorithm": "sha256('{seed}:{variant_id}') within class, tie by ID; int(n*fraction+0.5); sorted output IDs",
+  "calibration_fraction": 0.2,
+  "class_counts": {
+    "FUNC": 2821,
+    "INT": 249,
+    "LOF": 823
+  },
+  "counts": {
+    "FUNC": {
+      "calibration": 564,
+      "test": 2257
+    },
+    "INT": {
+      "calibration": 50,
+      "test": 199
+    },
+    "LOF": {
+      "calibration": 165,
+      "test": 658
+    }
+  },
+  "created_at": "2026-10-31T19:35:28.554388+00:00",
+  "genome_build": "GRCh37",
+  "id_file_sha256": {
+    "calibration.txt": "f17966cfdf4789d08d130d1ec82cfcf5aec53508ec6107bc80898c8ade73532a",
+    "test.txt": "a8c4ef203397af385521c41078055b8aef7f48502f52526714927d44321ed348"
+  },
+  "n_calibration": 779,
+  "n_test": 3114,
+  "reference": {
+    "accession": "NC_000017.10",
+    "assembly": "GRCh37.p13",
+    "chrom": "17",
+    "decompressed_file_sha256": "285e1f16a5a6680c6fdd70fc864d094c92d9262299d28d0ec876e3a747dd3fd9",
+    "download_sha256": "285e1f16a5a6680c6fdd70fc864d094c92d9262299d28d0ec876e3a747dd3fd9",
+    "downloaded_at": "2026-10-31T19:34:05.989228+00:00",
+    "encoding": "identity",
+    "genome_build": "GRCh37",
+    "length": 81195210,
+    "sequence_sha256": "2463d54fb95c959a3fe545545fd11313986278881c7ded54721e172e7df1a41a",
+    "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_000017.10&rettype=fasta&retmode=text"
+  },
+  "schema_version": 1,
+  "seed": 0,
+  "source": {
+    "download_note": "Downloaded in this implementation session from the publisher URL; downloaded_at records file completion time.",
+    "downloaded_at": "2026-10-31T19:33:07.010751+00:00",
+    "filename": "41586_2018_461_MOESM3_ESM.xlsx",
+    "sha256": "e9aa4186b8a5de91d61059d03f8dac1e5573d1e2802f50a6581c3053d22b923a",
+    "size_bytes": 2306341,
+    "url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs41586-018-0461-z/MediaObjects/41586_2018_461_MOESM3_ESM.xlsx",
+    "verified_at": "2026-10-31T19:35:19.619626+00:00"
+  },
+  "source_file": "41586_2018_461_MOESM3_ESM.xlsx",
+  "source_sha256": "e9aa4186b8a5de91d61059d03f8dac1e5573d1e2802f50a6581c3053d22b923a",
+  "validation_report_sha256": "ef13fcd44b2b9e189dad653f42b97d764f20a79cc3ffda3092dc898d80051c2d"
+}

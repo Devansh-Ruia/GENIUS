@@ -17,7 +17,6 @@ import argparse
 import hashlib
 import json
 import sys
-import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -81,71 +80,32 @@ def _score(value: Any) -> float | None:
     return float(value)
 
 
-def load_findlay(path: Path | None = None) -> list[Variant]:
-    """Read the Findlay table. Header is the third row; columns are found by name."""
+def load_findlay(
+    path: Path | None = None,
+    *,
+    reference_sequence: str | None = None,
+    validation_report: dict[str, Any] | None = None,
+) -> list[Variant]:
+    """Read all rows, optionally checking one-based genomic reference bases.
+
+    The loader never downloads. The opt-in pilot preparation command downloads
+    the pinned publisher workbook and reference before calling it.
+    """
     path = Path(path) if path is not None else default_findlay_path()
     if not path.is_file():
         raise FindlayFileMissing(
             f"Findlay file not found at {config.display_path(path)}. Put {FINDLAY_FILENAME} "
-            f"(supplementary data from {FINDLAY_SOURCE}) in data/raw/. This code never downloads it."
+            f"(supplementary data from {FINDLAY_SOURCE}) in data/raw/. This loader never downloads it."
         )
+    from vus_panel.eval.findlay_validation import inspect_findlay
 
-    from openpyxl import load_workbook
-    from openpyxl.utils.exceptions import InvalidFileException
-
-    try:
-        workbook = load_workbook(path, read_only=True, data_only=True)
-    except (zipfile.BadZipFile, InvalidFileException, KeyError, OSError) as exc:
-        raise FindlayFormatError(f"{path.name} is not a readable .xlsx file ({type(exc).__name__}: {exc})") from exc
-    try:
-        rows = workbook.worksheets[0].iter_rows(values_only=True)
-        header = None
-        for row_number, row in enumerate(rows, start=1):
-            if row_number == HEADER_ROW:
-                header = row
-                break
-        if header is None:
-            raise FindlayFormatError(f"{path.name} has fewer than {HEADER_ROW} rows")
-        names = [_text(cell) or "" for cell in header]
-        missing = [column for column in COLUMNS.values() if column not in names]
-        if missing:
-            raise FindlayFormatError(f"{path.name} header row {HEADER_ROW} is missing columns: {missing}")
-        index = {key: names.index(column) for key, column in COLUMNS.items()}
-
-        variants: list[Variant] = []
-        seen: set[str] = set()
-        for row_number, row in enumerate(rows, start=HEADER_ROW + 1):
-            if all(cell is None or (isinstance(cell, str) and not cell.strip()) for cell in row):
-                continue
-
-            def cell(key: str) -> Any:
-                i = index[key]
-                return row[i] if i < len(row) else None
-
-            func_class = _text(cell("func_class"))
-            if func_class not in FUNCTION_CLASSES:
-                raise FindlayFormatError(f"row {row_number}: unknown func.class {func_class!r}")
-            try:
-                variant = Variant(
-                    chrom=_text(cell("chrom")),
-                    pos=_position(cell("pos")),
-                    ref=_text(cell("ref")),
-                    alt=_text(cell("alt")),
-                    genome_build=FINDLAY_BUILD,
-                    findlay_function_class=func_class,
-                    findlay_score=_score(cell("score")),
-                )
-            except (ValueError, TypeError) as exc:
-                raise FindlayFormatError(f"row {row_number}: {exc}") from exc
-            if variant.variant_id in seen:
-                raise FindlayFormatError(f"row {row_number}: duplicate variant {variant.variant_id}")
-            seen.add(variant.variant_id)
-            variants.append(variant)
-    finally:
-        workbook.close()
-
-    if not variants:
-        raise FindlayFormatError(f"{path.name} has no variant rows")
+    variants, report = inspect_findlay(path, reference_sequence)
+    if validation_report is not None:
+        validation_report.update(report)
+    if not report["ok"]:
+        issues = [f"row {item['row']}: {item['message']}"
+                  for entries in report["issues"].values() for item in entries]
+        raise FindlayFormatError("; ".join(issues) if issues else f"{path.name} has no variant rows")
     return variants
 
 
