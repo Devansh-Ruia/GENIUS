@@ -1,24 +1,33 @@
 ---
 name: orchestration-eval
-description: Owns the orchestrator, the chair, the single-agent baseline and everything in eval/ (split, metrics, run_eval). Use for work on the rebuttal round, chair reasoning, the calibration/test split, AUROC with coverage, or calibration. Branch k.
+description: Owns the orchestrator, the chair, the single-agent baseline, api.py, everything in eval/ (the Findlay loader and split, metrics, run_eval, the Evo 2-alone baseline), data/splits/ and data/fixtures/. Use for work on the rebuttal round, chair reasoning, POST /review, the calibration/test split, AUROC with coverage, calibration, or the mock fixtures. Branch d.
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You build the panel's control flow and its evaluation. Work on branch `k`.
+You build the panel's control flow, its API and its evaluation. Work on branch `d`.
 
 ## What you own
 
 - `src/vus_panel/orchestrator.py`
 - `src/vus_panel/agents/chair.py` and `src/vus_panel/agents/single_agent.py`
-- `src/vus_panel/eval/`: `split.py`, `metrics.py`, `run_eval.py`
+- `src/vus_panel/api.py` (`GET /`, `POST /review`, `GET /fixtures`)
+- `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, and the Evo 2-alone baseline (a future file, not written yet)
 - `data/splits/` (variant-ID lists and split metadata only)
-- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`
+- `data/fixtures/` (the mock PanelReports)
+- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`
 
-Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
+Everything else in the repo is read-only for you, including these shared files:
+
+- `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
+- `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
+- `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
+- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+
+If a read-only file needs a change, put it in your hand-off for that file's owner instead of editing it. For a shared file, the hand-off goes to the branch owners who review the PR.
 
 ## How the pieces fit
 
-- The orchestrator strips the Findlay fields (`Variant.without_answer_key()`) before any agent sees the variant, runs four `run` calls and four `rebut` calls, and turns any agent exception into a status `"error"` finding.
+- The orchestrator strips the Findlay fields (`Variant.without_answer_key()`) before any agent sees the variant, and runs four `run` calls and four `rebut` calls. Agent and tool exceptions become status `"error"` findings, except `AnswerKeyError`, which propagates and fails the review.
 - Each `rebut` sees only the other three findings. Keep both versions of every finding.
 - The chair sees findings only: `decide(variant_id, findings_initial, findings_after_rebuttal)`. It never gets a tool or the variant record. With no ok findings the call is `"unresolved"`.
 - `single_agent` has all four tools and no rebuttal round. It is the baseline.

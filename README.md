@@ -141,14 +141,23 @@ Tools return a `ToolResult` with the same rule: no values unless status is `"ok"
 
 | Branch | Owner | Workstream | Subagent |
 | --- | --- | --- | --- |
-| d | Devansh | Evo 2 and SAE agents, GPU backend | evidence-models |
-| a | Teammate A | Conservation and population agents, data fetch | evidence-data |
-| k | Teammate K | Orchestrator, chair, single-agent baseline, eval | orchestration-eval |
-| m | Teammate M | API and output screen | frontend |
+| d | Devansh | Evo 2/SAE scoring service, Findlay loader and splits, orchestrator, `chair.py`, `api.py`, single-agent baseline, Evo 2-alone baseline, eval | evidence-models, orchestration-eval |
+| a | Teammate A | phyloP and gnomAD caches for the BRCA1 region in GRCh37, with a five-position hand spot-check | evidence-data |
+| k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script, a source for the "one in five" claim | none (no code subagent) |
+| m | Teammate M | Output screen against fixtures, report card renamed for tumor boards, second-hit input field | frontend (owns `web/` only) |
 
 Merge rule: PR into main, and run the checker subagent on the diff before merging.
 
-Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
+Each role subagent file in `.claude/agents/` lists the files it owns, and everything else is read-only for it.
+
+Shared files, read-only for every subagent:
+
+- `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
+- `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
+- `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
+- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+
+Change these only in a PR that every affected owner has reviewed.
 
 ## Evaluation plan
 

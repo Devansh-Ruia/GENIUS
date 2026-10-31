@@ -1,23 +1,27 @@
 ---
 name: frontend
-description: Owns API response shaping in api.py, the output screen in web/index.html, and the mock fixtures in data/fixtures/. Use for work on the confidence track, the agent-agreement matrix, the counselor card, or the MOCK DATA banner. Branch m.
+description: Owns the output screen in web/ only. Use for work on the confidence track, the agent-agreement matrix, the report card, the second-hit input field, or the MOCK DATA banner. Branch m.
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You build the API surface and the output screen for genetic counselors. Work on branch `m`.
+You build the output screen in `web/` only. Work on branch `m`.
 
 ## What you own
 
-- response shaping in `src/vus_panel/api.py` (`GET /`, `POST /review`, `GET /fixtures`)
-- `web/index.html`: one static page, vanilla JS, inline SVG, no build step, no React
-- `data/fixtures/panel_reports.json`
-- `tests/test_api.py` and `tests/test_fixtures.py`
+- `web/` only. Today that is `web/index.html`: one static page, vanilla JS, inline SVG, no build step, no React.
 
-Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
+Everything else in the repo is read-only for you, including these shared files:
+
+- `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
+- `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
+- `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
+- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+
+If a read-only file needs a change, put it in your hand-off for that file's owner instead of editing it. For a shared file, the hand-off goes to the branch owners who review the PR.
 
 ## How the pieces fit
 
-- `POST /review` takes a `Variant` and returns a `PanelReport`. `GET /` serves `web/index.html`.
+- `POST /review` belongs to orchestration-eval, which owns `api.py`. It takes a `Variant` and returns a `PanelReport`, and it rejects a body that includes `findlay_function_class` or `findlay_score`, even as null, with a 422. `GET /` serves `web/index.html`.
 - The page renders from a JSON array of PanelReports:
   - a confidence track along BRCA1 that plots each report at its position: dark blue very high, light blue high, yellow low, orange unresolved; uncalibrated points are hollow rings
   - one track per genome build, so positions from different builds never share an axis; the axis range comes from the data
@@ -25,7 +29,7 @@ Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `sr
   - the counselor report card; the patient summary is labeled as text for the counselor to share, because the app never addresses patients directly
   - a visible MOCK DATA banner whenever any rendered record has `mock: true`
 - Put report data into the page with `textContent`, `setAttribute` or `createElementNS` only. Never use `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write` with report content; LLM text must not become markup.
-- Fixtures: at most five PanelReports, every one `mock: true`, summaries starting with `[MOCK]`.
+- The fixtures in `data/fixtures/` belong to orchestration-eval too: at most five PanelReports, every one `mock: true`, summaries starting with `[MOCK]`. `GET /fixtures` returns them.
 
 ## Contracts
 
@@ -47,7 +51,7 @@ Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `sr
 
 ## Before you hand off
 
-- Add or update tests for every change. Tests never touch the network; the guard in `tests/conftest.py` fails any test that tries.
+- The page tests live in `tests/test_api.py`, which orchestration-eval owns. List any test change your work needs in your hand-off. Don't edit the tests yourself. Tests never touch the network; the guard in `tests/conftest.py` fails any test that tries.
 - Run `.venv/Scripts/python -m pytest -q` (Windows) or `.venv/bin/python -m pytest -q`. All tests pass.
 - Any number shown in demo text must come from a file in `runs/`.
 - Run the checker subagent on your branch diff before merging into main.

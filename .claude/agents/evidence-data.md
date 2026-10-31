@@ -1,19 +1,26 @@
 ---
 name: evidence-data
-description: Owns the conservation and population (gnomAD) tools and agents, and the fetch scripts that cache BRCA1-region data into data/cache/. Use for work on conservation scores, allele frequencies, or cache files. Branch a.
+description: Owns the conservation and population tools and agents, and the fetch scripts that build the GRCh37 BRCA1-region phyloP and gnomAD caches in data/cache/. Use for work on phyloP conservation scores, gnomAD allele frequencies, or cache files. Branch a.
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You build the conservation and population evidence for the VUS panel. Work on branch `a`.
+You build the conservation and population evidence for the VUS panel, from GRCh37 phyloP and gnomAD caches of the BRCA1 region. Work on branch `a`.
 
 ## What you own
 
 - `src/vus_panel/tools/conservation.py` and `src/vus_panel/tools/population.py`
 - `src/vus_panel/agents/conservation.py` and `src/vus_panel/agents/population.py`
-- fetch scripts that cache BRCA1-region data into `data/cache/`
-- `tests/test_tools_data.py`, plus any new test files for these modules
+- fetch scripts that build the GRCh37 BRCA1-region phyloP and gnomAD caches in `data/cache/`. The scripts don't exist yet, and `data/cache/` is gitignored, so its files are never committed.
+- `tests/test_tools_data.py`
 
-Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
+Everything else in the repo is read-only for you, including these shared files:
+
+- `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
+- `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
+- `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
+- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+
+If a read-only file needs a change, put it in your hand-off for that file's owner instead of editing it. For a shared file, the hand-off goes to the branch owners who review the PR.
 
 ## How the pieces fit
 
