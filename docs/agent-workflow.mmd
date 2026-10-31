@@ -1,0 +1,138 @@
+flowchart TD
+    %% Scope: Codex development roles only. README.md's runtime evidence panel
+    %% and chair are a separate system; module names below describe file ownership.
+    %% Solid arrows show required human/agent process, not automated test or merge gates.
+    %% Dotted arrows attach explanatory configuration notes.
+    %% Matching F/R return labels express repetition without backward stage edges.
+
+    subgraph intake["Request and delegation"]
+        direction TB
+        REQUEST["User request"] --> MAIN["Main Codex session<br/>Assign scoped work<br/>Coordinate handoffs and integration"]
+        CONFIG["Configured mechanics<br/>Role TOMLs supply instructions<br/>All roles inherit session permissions<br/>No per-role filesystem restriction"]
+        CONFIG -.-> MAIN
+    end
+
+    %% Sources: all six .codex/agents/*.toml; .codex/agents/README.md.
+    %% The main session assigns work and integrates it. Agents do not switch the
+    %% shared checkout's branch, undo others' changes, commit, push, or merge.
+    %% No automatic test gate, owner-approval gate, or per-file ACL is configured
+    %% by these role TOMLs. Remote CI and branch-protection settings are not inferred.
+    subgraph roles["Choose responsible implementer, ownership is an instruction"]
+        direction TB
+        %% Sources: .codex/agents/maker.toml; .claude/agents/maker.md.
+        %% The Codex definition replaces the legacy CLAUDE.md reference with AGENTS.md.
+        MAKER["maker<br/>Explicitly assigned files only<br/>No standing specialist ownership<br/>No shared-file override"]
+
+        %% Sources: .codex/agents/frontend.toml; .claude/agents/frontend.md.
+        FRONTEND["frontend<br/>web/ only<br/>API, fixture, and test changes<br/>go to orchestration-eval"]
+
+        %% Sources: .codex/agents/evidence-data.toml; .claude/agents/evidence-data.md.
+        %% Owns conservation.py and population.py in tools/ and agents/, cache
+        %% fetchers, licensed phyloP/gnomAD reference files, tests/test_tools_data.py,
+        %% and tests/test_fetch_*.py. Manifest edits are limited to owner_branch=a.
+        DATA["evidence-data<br/>Conservation/population modules<br/>Fetchers and licensed reference files<br/>Manifest: owner_branch=a only<br/>Tests: tools_data, fetch_*"]
+
+        %% Sources: .codex/agents/evidence-models.toml; .claude/agents/evidence-models.md.
+        %% Owns evo2.py and sae.py in tools/ and agents/, the scoring client and
+        %% assigned service modules, tests/test_tools_models.py and test_scoring_*.py.
+        MODELS["evidence-models<br/>Evo 2/SAE tools and agent modules<br/>Scoring client and assigned services<br/>Tests: tools_models, scoring_*"]
+
+        %% Sources: .codex/agents/orchestration-eval.toml;
+        %% .claude/agents/orchestration-eval.md. Owns src/vus_panel/orchestrator.py,
+        %% api.py, agents/chair.py, agents/single_agent.py, eval/, data/splits/,
+        %% data/fixtures/, and data/reference/MANIFEST.json. Coordinate branch-a
+        %% manifest entries with evidence-data. Test labels abbreviate tests/test_*.py.
+        ORCHESTRATION["orchestration-eval<br/>Orchestrator, API, chair/baseline code<br/>eval/, splits/, fixtures/, manifest<br/>Tests: orchestrator, split, metrics, run_eval<br/>api, fixtures, reference_data"]
+    end
+
+    MAIN --> MAKER
+    MAIN --> FRONTEND
+    MAIN --> DATA
+    MAIN --> MODELS
+    MAIN --> ORCHESTRATION
+
+    %% Invisible links only arrange the five independent choices in two rows.
+    %% They do not impose execution order or delegate work between roles.
+    MAKER ~~~ DATA
+    FRONTEND ~~~ MODELS
+    FRONTEND ~~~ ORCHESTRATION
+
+    %% Sources: README.md, Branch ownership; AGENTS.md, Commit and pull request
+    %% guidelines; ownership and handoff rules in all implementing .codex/agents/*.toml.
+    %% Shared files include contracts/configuration, package initializers, test
+    %% guards/factories, project configuration, README.md, and .claude/.
+    %% A manifest entry's narrow owner_branch=a allowance is not general shared access.
+    subgraph implementation["Required implementation and validation"]
+        direction TB
+        SCOPE{"Outside assigned<br/>ownership?"}
+        HANDOFF["Main coordinates file-owner change<br/>Specialists hand off shared files<br/>and out-of-scope test changes"]
+        EDIT["Responsible implementer<br/>Edit or fix in-scope files<br/>Add meaningful regression tests"]
+        TESTS["Required tests<br/>Relevant checks and full pytest suite<br/>Report actual results or blockers"]
+        PASS{"Tests passing?"}
+        SCOPE -->|"No"| EDIT
+        SCOPE -->|"Yes"| HANDOFF
+        HANDOFF --> TESTS
+        EDIT --> TESTS
+        TESTS --> PASS
+    end
+
+    MAKER --> SCOPE
+    FRONTEND --> SCOPE
+    DATA --> SCOPE
+    MODELS --> SCOPE
+    ORCHESTRATION --> SCOPE
+
+    %% Sources: AGENTS.md, Testing guidelines; all implementing .codex/agents/*.toml;
+    %% .claude/agents/frontend.md assigns tests/test_api.py edits to orchestration-eval.
+    %% Full-suite command: .venv/Scripts/python -m pytest -q on Windows,
+    %% .venv/bin/python -m pytest -q on macOS/Linux. Tests must remain offline.
+    %% Source: .codex/agents/checker.toml and .claude/agents/checker.md, review checklist.
+    subgraph review["Required independent review and correction"]
+        direction TB
+        CHECKER["checker: inspect and report only<br/>Read diff and files; run tests<br/>Check contracts, ownership, and security<br/>Report results; no edits or integration"]
+        CHECKER_RULE["No-edit is an instruction<br/>Inherited session permissions still apply<br/>Claude Bash hook does not run in Codex<br/>No enforced read-only role sandbox"]
+        FINDINGS{"R: Checker findings<br/>or discussion?"}
+        FIX["F: Main routes issues<br/>Responsible implementer fixes in scope<br/>Parent coordinates owner handoffs"]
+        RETEST["Retest revised changes<br/>Relevant checks and full suite"]
+        RECHECK["checker reviews revised diff<br/>Inspect and report only"]
+        RETURN_R["Continue at R<br/>Evaluate the new checker report"]
+        CHECKER -.-> CHECKER_RULE
+        CHECKER --> FINDINGS
+        FINDINGS -->|"Yes"| FIX
+        FIX --> RETEST
+        RETEST -->|"Passing"| RECHECK
+        RECHECK --> RETURN_R
+        RETEST -->|"Failed or blocked"| RETURN_F["Continue at F<br/>Route test failures to the owner"]
+    end
+
+    PASS -->|"Yes"| CHECKER
+    PASS -->|"No or blocked"| FIX
+
+    %% Sources: README.md, Branch ownership and merge rule; AGENTS.md, Commit and
+    %% pull request guidelines; .codex/agents/maker.toml and specialist handoff rules.
+    %% Affected-owner review is required for shared-file changes. This diagram
+    %% does not assert GitHub enforces that requirement or automatically merges.
+    subgraph integration["Required PR and owner review before merge"]
+        direction TB
+        PR["Main coordinates PR into main<br/>Include scope and validation"]
+        SHARED{"Shared files<br/>changed?"}
+        OWNERS["Every affected owner reviews<br/>Required for shared-file changes"]
+        OWNER_ISSUES{"Owner requests<br/>changes?"}
+        OWNER_RETURN["Continue at F<br/>Fix owner findings, retest,<br/>and obtain checker review again"]
+        MERGE["Main coordinates integration<br/>Merge after required reviews<br/>Implementing subagents do not merge"]
+        PR --> SHARED
+        SHARED -->|"Yes"| OWNERS
+        SHARED -->|"No"| MERGE
+        OWNERS --> OWNER_ISSUES
+        OWNER_ISSUES -->|"No"| MERGE
+        OWNER_ISSUES -->|"Yes"| OWNER_RETURN
+    end
+
+    FINDINGS -->|"No unresolved findings"| PR
+
+    classDef configuration fill:#eaf3fb,stroke:#356a99,color:#17324d;
+    classDef instruction fill:#fff5df,stroke:#a67621,color:#493310;
+    classDef implementer fill:#eef7ed,stroke:#527a4c,color:#243c21;
+    class CONFIG configuration;
+    class CHECKER_RULE instruction;
+    class MAKER,FRONTEND,DATA,MODELS,ORCHESTRATION implementer;
