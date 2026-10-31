@@ -4,12 +4,14 @@
 Claude Code passes the tool call as JSON on stdin, with the command at
 tool_input.command and the working directory at cwd. Exit 0 lets the call
 continue to the normal permission flow. Exit 2 blocks it, and stderr goes
-back to the checker as the reason. Anything the guard can't parse is blocked.
+back to the checker as the reason. Anything the guard can't parse, including
+input without a cwd, is blocked.
 
 Allowed, as one plain command with no shell operators or expansions:
 - this repo's .venv python with -m pytest, or this repo's .venv pytest,
   with arguments from a short allowlist and test paths under tests/
-- read-only git: diff, log, show, status, branch (listing only), rev-parse
+- read-only git: diff, log, show, status, branch (listing only), rev-parse,
+  with no path that points outside the repo
 
 Standard library only, so it runs under any Python 3.8+.
 """
@@ -26,10 +28,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# Operators, redirects, substitution, escapes, and brace, glob, tilde or
-# history expansion. Bash would expand or act on these after this guard has
-# checked the raw text, so any command containing one is blocked.
-FORBIDDEN = (";", "&", "|", ">", "<", "`", "$", "\\", "\n", "\r", "{", "}", "*", "?", "[", "]", "~", "!")
+# Operators, redirects, substitution, escapes, comments, subshells, and brace,
+# glob, extglob, tilde or history expansion. Bash would act on these after this
+# guard has checked the raw text, so any command containing one is blocked.
+# Control characters and anything outside printable ASCII are blocked separately.
+FORBIDDEN = (";", "&", "|", ">", "<", "`", "$", "\\", "{", "}", "*", "?", "[", "]", "~", "!", "#", "(", ")")
 
 VENV_PYTHONS = (".venv/Scripts/python.exe", ".venv/Scripts/python", ".venv/bin/python", ".venv/bin/python3")
 VENV_PYTESTS = (".venv/Scripts/pytest.exe", ".venv/Scripts/pytest", ".venv/bin/pytest")
@@ -42,17 +45,17 @@ TEST_PATH_RE = re.compile(r"^tests(?:/[A-Za-z0-9_.-]+)*/?(?:::[A-Za-z0-9_]+)*$")
 GIT_READ_ONLY = {"diff", "log", "show", "status", "branch", "rev-parse"}
 # Git accepts unambiguous abbreviations of long options, so "--out=x" means
 # "--output=x". Any long option that could abbreviate one of these is blocked.
-GIT_DANGEROUS = ("--output", "--ext-diff")
+GIT_DANGEROUS = ("--output", "--ext-diff", "--no-index")
 BRANCH_FLAGS = {
     "-a", "--all", "-r", "--remotes", "-v", "-vv", "--verbose", "--show-current", "--no-color",
     "-l", "--list", "--merged", "--no-merged", "--contains", "--no-contains",
 }
-BRANCH_LIST_MODE = {"-l", "--list", "--merged", "--no-merged", "--contains", "--no-contains"}
 
 ALLOWED_SUMMARY = (
     "Allowed: .venv/Scripts/python -m pytest (or .venv/bin/python) with -q, -v, -x, -k EXPR, --tb=STYLE, "
-    "-rCHARS and paths under tests/, and read-only git (diff, log, show, status, branch listing, rev-parse). "
-    "One command from the repo root, no shell operators or expansions, forward slashes in paths."
+    "-rCHARS and paths under tests/, and read-only git (diff, log, show, status, branch listing, rev-parse) "
+    "with paths inside the repo. One command from the repo root, no shell operators, comments or expansions, "
+    "forward slashes in paths."
 )
 
 
@@ -65,13 +68,13 @@ def _norm(path_text: str) -> str:
     return text.lower() if os.name == "nt" else text
 
 
-def _is_repo_venv_tool(head: str, cwd: str | None, names: tuple[str, ...]) -> bool:
-    """True only for this repo's own .venv executable, relative or absolute."""
+def _is_repo_venv_tool(head: str, cwd: str, names: tuple[str, ...]) -> bool:
+    """True only for this repo's own .venv executable, relative (from the repo root) or absolute."""
     if head.startswith("./"):
         head = head[2:]
     root = _norm(str(REPO_ROOT))
     if head in names:
-        return cwd is None or _norm(cwd) == root
+        return _norm(cwd) == root
     return _norm(head) in {_norm(f"{root}/{name}") for name in names}
 
 
@@ -101,14 +104,14 @@ def _git_option_blocked(arg: str) -> bool:
     return any(danger.startswith(name) or name.startswith(danger) for danger in GIT_DANGEROUS)
 
 
-def _check_branch(args: list[str]) -> str | None:
-    flags = [a for a in args if a.startswith("-")]
-    positionals = [a for a in args if not a.startswith("-")]
-    unknown = [f for f in flags if f not in BRANCH_FLAGS]
-    if unknown:
-        return f"git branch {unknown[0]} is not a listing option"
-    if positionals and not BRANCH_LIST_MODE.intersection(flags):
-        return "git branch with a name would create a branch"
+def _git_path_problem(arg: str) -> str | None:
+    """A positional that could name a file outside the repo. Revision ranges like main...HEAD pass."""
+    if arg.startswith("/"):
+        return "absolute paths are not allowed"
+    if re.match(r"^[A-Za-z]:", arg):
+        return "drive paths are not allowed (for a one-letter branch use refs/heads/NAME:PATH)"
+    if ".." in re.split(r"[/:]", arg):
+        return "'..' path segments are not allowed"
     return None
 
 
@@ -122,18 +125,32 @@ def _check_git(args: list[str]) -> str | None:
         return "git global options are not allowed (only --no-pager)"
     if sub not in GIT_READ_ONLY:
         return f"git {sub} is not on the read-only list"
+    after_double_dash = False
     for arg in rest:
-        if _git_option_blocked(arg):
-            return f"git option {arg.split('=')[0]} could write a file or run a program"
-    if sub == "branch":
-        return _check_branch(rest)
+        if not after_double_dash and arg == "--":
+            after_double_dash = True
+            continue
+        if not after_double_dash and arg.startswith("-"):
+            if _git_option_blocked(arg):
+                return f"git option {arg.split('=')[0]} could write a file, run a program or read outside the repo"
+            if sub == "branch" and arg not in BRANCH_FLAGS:
+                return f"git branch {arg} is not a listing option"
+            continue
+        if sub == "branch":
+            return "git branch takes no names or patterns here, since a name would create a branch"
+        problem = _git_path_problem(arg)
+        if problem is not None:
+            return f"git argument {arg!r}: {problem}"
     return None
 
 
-def check(command: str, cwd: str | None = None) -> str | None:
-    """Return the reason to block, or None to allow. cwd None means the repo root."""
+def check(command: str, cwd: str) -> str | None:
+    """Return the reason to block, or None to allow."""
     if not command or not command.strip():
         return "empty command"
+    bad = [c for c in command if not 0x20 <= ord(c) <= 0x7E]
+    if bad:
+        return f"character {bad[0]!r} is not allowed (printable ASCII and space only)"
     for char in FORBIDDEN:
         if char in command:
             return f"{char!r} is not allowed"
@@ -159,11 +176,11 @@ def main() -> int:
     try:
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         command = payload["tool_input"]["command"]
+        cwd = payload["cwd"]
         if not isinstance(command, str):
             raise TypeError("tool_input.command is not a string")
-        cwd = payload.get("cwd")
-        if cwd is not None and not isinstance(cwd, str):
-            raise TypeError("cwd is not a string")
+        if not isinstance(cwd, str) or not cwd:
+            raise TypeError("cwd is missing or not a string")
     except Exception as exc:  # fail closed
         print(f"Blocked: the checker Bash guard could not read the tool call ({exc}).", file=sys.stderr)
         return 2

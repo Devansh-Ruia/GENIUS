@@ -1,4 +1,4 @@
-"""HTTP API. Owner: frontend (response shaping) and orchestration-eval (the panel itself).
+"""HTTP API. Owner: frontend. The panel behind POST /review is orchestrator.py, owned by orchestration-eval.
 
 GET /          serves web/index.html
 POST /review   takes a Variant and returns a PanelReport

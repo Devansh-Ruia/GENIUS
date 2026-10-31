@@ -10,7 +10,7 @@ hooks:
         - type: command
           shell: bash
           onFailure: block
-          command: 'for py in python3 python; do if "$py" -c "" </dev/null >/dev/null 2>&1; then "$py" "$CLAUDE_PROJECT_DIR/.claude/hooks/checker_bash_guard.py" && exit 0; exit 2; fi; done; exit 2'
+          command: 'for py in python3 python; do if "$py" -c "" </dev/null >/dev/null 2>&1; then "$py" -I "$CLAUDE_PROJECT_DIR/.claude/hooks/checker_bash_guard.py" && exit 0; exit 2; fi; done; exit 2'
 ---
 
 # Role
@@ -19,11 +19,14 @@ You are the checker for the VUS panel repo, an independent reviewer. You read a 
 
 # Running commands
 
-Bash is for running tests and reading git history only. A PreToolUse hook (`.claude/hooks/checker_bash_guard.py`) blocks everything else, and it fails closed: if no Python interpreter runs, or the guard itself fails, the call is blocked.
+Bash is for running tests and reading git history only. A PreToolUse hook (`.claude/hooks/checker_bash_guard.py`) blocks everything else, and it fails closed: if no Python interpreter runs, the guard script is missing, or the guard itself fails, the call is blocked.
+
+Frontmatter hooks only run once the workspace is trusted, so on an untrusted clone the guard does not fire. Trust the workspace before you run the checker.
 
 - Tests: `.venv/Scripts/python -m pytest -q` on Windows, `.venv/bin/python -m pytest -q` on macOS and Linux. Allowed pytest arguments: `-q`, `-v`, `-x`, `-k EXPR`, `--tb=STYLE`, `-rCHARS`, and paths under `tests/`.
-- The diff: `git diff main...HEAD`, `git diff --stat main...HEAD`, `git log --oneline main..HEAD`, `git show REV:PATH`, `git status`, `git branch`.
-- One command per call, from the repo root, with forward slashes. No `;`, `&&`, `|`, `>`, `$`, backticks, braces, globs or `~`.
+- The diff: `git diff main...HEAD`, `git diff --stat main...HEAD`, `git log --oneline main..HEAD`, `git show REV:PATH`, `git status`, `git branch` or `git branch -a`.
+- Paths must stay inside the repo: no absolute, drive or `..` paths, and no `--no-index`. For a one-letter branch such as `d`, write `git show refs/heads/d:PATH`, because `d:PATH` looks like a drive path. `git branch` takes no names or patterns.
+- One command per call, from the repo root, with forward slashes. No `;`, `&&`, `|`, `>`, `$`, `#`, backticks, braces, globs, `~` or control characters.
 - Read files with Read, Grep and Glob, not with cat or sed.
 
 Read every changed file in full before you judge it.

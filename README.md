@@ -4,7 +4,7 @@ A multi-agent panel that reviews BRCA1 variants of uncertain significance. This 
 
 ## Problem
 
-Almost one in five genetic tests returns a variant of uncertain significance, or VUS (citation needed), and patients often read it as high cancer risk even though ACMG guidelines say no clinical decision should rest on a VUS.
+Almost one in five genetic tests returns a variant of uncertain significance, or VUS (citation needed), and patients often read it as high cancer risk even though ACMG guidelines say no clinical decision should rest on a VUS (Richards et al. 2015, Genet Med 17(5):405-424, doi:10.1038/gim.2015.30).
 
 ## Solution
 
@@ -50,11 +50,11 @@ uv venv --python 3.11
 uv pip install -e ".[dev]"
 ```
 
-Run the tests (Windows path first, then macOS and Linux):
+Run the tests:
 
 ```bash
-.venv/Scripts/python -m pytest -q
-.venv/bin/python -m pytest -q
+.venv/Scripts/python -m pytest -q   # Windows
+.venv/bin/python -m pytest -q       # macOS and Linux
 ```
 
 Tests never reach the network. An autouse fixture in `tests/conftest.py` blocks socket connections and DNS lookups, clears the API variables, and points the data and run directories at a temporary folder.
@@ -62,7 +62,8 @@ Tests never reach the network. An autouse fixture in `tests/conftest.py` blocks 
 Serve the API and the page:
 
 ```bash
-.venv/Scripts/python -m uvicorn vus_panel.api:app --reload
+.venv/Scripts/python -m uvicorn vus_panel.api:app --reload   # Windows
+.venv/bin/python -m uvicorn vus_panel.api:app --reload       # macOS and Linux
 ```
 
 Open http://127.0.0.1:8000. "Load fixtures" shows the five mock reports under a MOCK DATA banner. The review form posts a variant to `POST /review`, which returns `call: "unresolved"` with four unavailable findings until the agents are implemented.
@@ -78,13 +79,17 @@ Configuration comes from environment variables. Copy `.env.example` to `.env` an
 Make the calibration/test split once the Findlay file is in place. Put `41586_2018_461_MOESM3_ESM.xlsx` from Findlay et al. 2018 in `data/raw/`. Nothing in this repo downloads it.
 
 ```bash
-.venv/Scripts/python -m vus_panel.eval.split
+.venv/Scripts/python -m vus_panel.eval.split   # Windows
+.venv/bin/python -m vus_panel.eval.split       # macOS and Linux
 ```
+
+Running it again needs `--force` to overwrite existing split files.
 
 Score a set of real (non-mock) reports on the test split:
 
 ```bash
-.venv/Scripts/python -m vus_panel.eval.run_eval --reports path/to/reports.json --system panel
+.venv/Scripts/python -m vus_panel.eval.run_eval --reports path/to/reports.json --system panel   # Windows
+.venv/bin/python -m vus_panel.eval.run_eval --reports path/to/reports.json --system panel       # macOS and Linux
 ```
 
 ## Repo layout
@@ -118,7 +123,14 @@ The source of truth is `src/vus_panel/schemas.py`, tested in `tests/test_schemas
 
 - **Variant**: `chrom`, `pos`, `ref`, `alt`, `genome_build` (required, `"GRCh37"` or `"GRCh38"`), optional `hgvs_c`, `findlay_function_class`, `findlay_score`. `ref` and `alt` are single bases from ACGT and differ. `chrom` accepts `17` or `chr17` and stores `17`. The ID is `BUILD-CHROM-POS-REF-ALT`, for example `GRCh37-17-100-A-G`.
 - **AgentFinding**: `agent`, `variant_id`, `status` (`"ok"`, `"unavailable"` or `"error"`), `verdict` (`"damaging"`, `"tolerated"`, `"uncertain"` or null), `raw_values`, `rationale`, `sources`. `verdict` is null and `raw_values` is empty unless status is `"ok"`. Added here: an ok finding needs a verdict, and the optional `revision_reason` holds the rebuttal round's reason.
-- **PanelReport**: `variant_id`, `call` (`"likely_damaging"`, `"likely_tolerated"` or `"unresolved"`), `confidence` (in [0, 1] or null), `calibrated`, `driving_agents`, `conflicts`, `what_would_settle_it`, `counselor_summary`, `patient_summary`, `findings_initial`, `findings_after_rebuttal`, `mock`. Added here: `calibrated` is false when confidence is null, findings match the report's variant, both finding lists cover the same agents, driving agents had status ok after rebuttal, a call other than unresolved names at least one driving agent, and a changed verdict carries a `revision_reason`.
+- **PanelReport**: `variant_id`, `call` (`"likely_damaging"`, `"likely_tolerated"` or `"unresolved"`), `confidence` (in [0, 1] or null), `calibrated`, `driving_agents`, `conflicts`, `what_would_settle_it`, `counselor_summary`, `patient_summary`, `findings_initial`, `findings_after_rebuttal`, `mock`. Added here:
+  - findings match the report's variant, and both finding lists cover the same agents
+  - a resolved call needs a confidence and at least one driving agent, and driving agents had status ok after rebuttal
+  - an unresolved call has null confidence and `calibrated: false`
+  - an initial finding has no `revision_reason`
+  - a non-ok finding can't gain a verdict in rebuttal
+  - an ok finding keeps its `raw_values` and `sources` through rebuttal
+  - a changed verdict, or an ok finding withdrawn in rebuttal, carries a `revision_reason`
 - **RunRecord**: `run_id`, `git_commit`, `config`, `seed`, `started_at` (timezone-aware), `variant_ids`, `outputs_path`.
 - **Tool isolation**: each agent receives only its own tool functions. A test fails if any agent module imports another agent's tool module, directly or through a shared helper, and another checks that the chair receives findings only.
 
@@ -135,17 +147,17 @@ Tools return a `ToolResult` with the same rule: no values unless status is `"ok"
 
 Merge rule: PR into main, and run the checker subagent on the diff before merging.
 
-`schemas.py`, `tests/conftest.py` and `tests/test_isolation.py` are shared. Change them only in a PR the other owners have seen.
+Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
 
 ## Evaluation plan
 
-- **Answer key**: the Findlay et al. 2018 saturation genome editing scores for 3,893 BRCA1 SNVs, as used in [NVIDIA's Evo 2 zero-shot BRCA1 notebook](https://docs.nvidia.com/bionemo-framework/2.5/user-guide/examples/bionemo-evo2/zeroshot_brca1/). Following that notebook, LOF is the positive class and FUNC plus INT are negative. Positions are hg19, so GRCh37.
+- **Answer key**: the saturation genome editing scores for 3,893 BRCA1 SNVs from Findlay et al. 2018 (Nature 562(7726):217-222, doi:10.1038/s41586-018-0461-z), as used in [NVIDIA's Evo 2 zero-shot BRCA1 notebook](https://docs.nvidia.com/bionemo-framework/2.5/user-guide/examples/bionemo-evo2/zeroshot_brca1/). Following that notebook, LOF is the positive class and FUNC plus INT are negative. Positions are hg19, so GRCh37.
 - **Split**: `eval/split.py` assigns variant IDs to calibration and test with seed 0, stratified by function class. The calibration fraction defaults to 0.2 and is a CLI flag. Only ID lists and a metadata file (seed, counts, the source file's sha256) are committed to `data/splits/`.
 - **Systems compared on the test split**: the panel, the single-agent baseline, and Evo 2 alone (the zero-shot delta, scored as minus delta as in the notebook).
 - **Discrimination**: AUROC on resolved variants, always reported together with coverage, the fraction not unresolved. A system can't look better by abstaining without that showing up in coverage.
 - **Calibration check**: reliability bins and expected calibration error on the test split. Any calibration is fit on the calibration split only, and a report sets `calibrated: true` only after that.
 - **Spread**: any standard deviation, for example across seeds, uses ddof=1.
-- **Guards**: `eval/run_eval.py` refuses records with `mock: true`, reports for variants outside the test split, and test-split findings that cite ClinVar. Each run writes `runs/<run_id>/run_record.json` (config, seed, git commit, timestamp) and `metrics.json`.
+- **Guards**: `eval/run_eval.py` refuses records with `mock: true`, reports for variants outside the test split, test-split reports that mention ClinVar (the name, VCV, RCV or SCV accessions, or CLN* VCF tags), a report set that covers only part of the test split unless `--allow-partial` is given, and a `--seed` or Findlay file that doesn't match `split_meta.json`. It records the test-split size, the number evaluated and the sha256 of `test.txt`. Each run writes `runs/<run_id>/run_record.json` (config, seed, git commit, timestamp) and `metrics.json`.
 
 ## What is mocked and what is real right now
 

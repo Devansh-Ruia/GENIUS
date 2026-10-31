@@ -186,3 +186,78 @@ def test_verdict_change_with_reason_is_kept():
     report = orchestrator.review(placeholder_variant(), agents=stub_panel(evo2=flip))
     after = {f.agent: f for f in report.findings_after_rebuttal}["evo2"]
     assert (after.status, after.verdict, after.revision_reason) == ("ok", "tolerated", "placeholder")
+
+
+# An ok finding keeps its evidence through rebuttal, and only gives it up with a reason
+
+@pytest.mark.parametrize(
+    "change",
+    [{"raw_values": {"placeholder": 0.0}}, {"sources": ["placeholder source"]}],
+    ids=["raw_values", "sources"],
+)
+def test_rebuttal_cannot_add_evidence(change):
+    agent = OkAgent("evo2", lambda own: own.model_copy(update=change))
+    report = orchestrator.review(placeholder_variant(), agents=stub_panel(evo2=agent))
+    after = {f.agent: f for f in report.findings_after_rebuttal}["evo2"]
+    assert after.status == "error"
+    assert "no tool access" in after.rationale
+
+
+def _after(agent):
+    report = orchestrator.review(placeholder_variant(), agents=stub_panel(evo2=agent))
+    return {f.agent: f for f in report.findings_after_rebuttal}["evo2"]
+
+
+def test_withdrawing_an_ok_finding_needs_a_reason():
+    withdraw = {"status": "unavailable", "verdict": None, "raw_values": {}}
+    silent = _after(OkAgent("evo2", lambda own: own.model_copy(update=withdraw)))
+    assert silent.status == "error"
+    assert "withdrawn" in silent.rationale
+    explained = _after(OkAgent("evo2", lambda own: own.model_copy(update={**withdraw, "revision_reason": "placeholder"})))
+    assert (explained.status, explained.revision_reason) == ("unavailable", "placeholder")
+
+
+def test_orchestrator_rebuttal_error_on_an_ok_finding_records_why():
+    class Crash(OkAgent):
+        def rebut(self, own, others):
+            raise RuntimeError("placeholder crash")
+
+    after = _after(Crash("evo2", None))
+    assert after.status == "error"
+    assert after.revision_reason.startswith("set by the orchestrator")
+
+
+def test_agent_finding_subclass_is_rejected():
+    class SubFinding(AgentFinding):
+        pass
+
+    imposter = SubFinding(agent="sae", variant_id=PLACEHOLDER_ID, status="unavailable", rationale="stub")
+    report = orchestrator.review(placeholder_variant(), agents=stub_panel(sae=StubAgent("sae", run_returns=imposter)))
+    sae_initial = {f.agent: f for f in report.findings_initial}["sae"]
+    assert type(sae_initial) is AgentFinding
+    assert sae_initial.status == "error"
+
+
+def test_chair_must_pass_findings_through_unchanged():
+    def rewriting_chair(variant_id, initial, after):
+        changed = [after[0].model_copy(update={"rationale": "rewritten by the chair"}), *after[1:]]
+        return chair.decide(variant_id, initial, changed)
+
+    with pytest.raises(ValueError, match="chair changed the findings"):
+        orchestrator.review(placeholder_variant(), chair=rewriting_chair)
+
+
+def test_chair_editing_findings_in_place_is_caught():
+    # The chair edits the ok evo2 finding the same way in both lists, so the report
+    # it builds still validates. Only the comparison against untouched originals
+    # catches it, which needs the chair to have been handed deep copies.
+    def mutating_chair(variant_id, initial, after):
+        for findings in (initial, after):
+            evo2_finding = next(f for f in findings if f.agent == "evo2")
+            evo2_finding.raw_values["placeholder"] = 0.0  # frozen model, mutable dict
+            evo2_finding.sources.append("placeholder source")
+        return chair.decide(variant_id, initial, after)
+
+    keep = OkAgent("evo2", lambda own: own)
+    with pytest.raises(ValueError, match="chair changed the findings"):
+        orchestrator.review(placeholder_variant(), agents=stub_panel(evo2=keep), chair=mutating_chair)

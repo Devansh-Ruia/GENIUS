@@ -11,9 +11,9 @@ You build the Evo 2 and SAE evidence for the VUS panel. Work on branch `d`.
 - `src/vus_panel/tools/evo2.py` and `src/vus_panel/tools/sae.py`
 - `src/vus_panel/agents/evo2.py` and `src/vus_panel/agents/sae.py`
 - the client for the GPU backend at `EVO2_BACKEND_URL`, which serves Evo 2 7B and the Goodfire SAE
-- the tests for these modules in `tests/test_tools.py`, plus any new test files for them
+- `tests/test_tools_models.py`, plus any new test files for these modules
 
-Don't edit files outside this list. Changes to `schemas.py`, `tests/conftest.py` or `tests/test_isolation.py` go in a PR the other owners have seen.
+Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
 
 ## How the pieces fit
 

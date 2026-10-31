@@ -114,34 +114,37 @@ def closure(name: str, root: Path = SRC) -> set[str]:
     return seen
 
 
-def dynamic_import_uses(source: str) -> list[str]:
-    found = []
-    for node in ast.walk(ast.parse(source)):
-        if isinstance(node, ast.Import) and any(a.name.split(".")[0] == "importlib" for a in node.names):
-            found.append("import importlib")
-        elif isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "importlib":
-            found.append("from importlib")
-        elif isinstance(node, ast.Name) and node.id in {"__import__", "importlib"}:
-            found.append(node.id)
-        elif isinstance(node, ast.Attribute) and node.attr == "__import__":
-            found.append("__import__")
-    return found
+BANNED_MODULES = {"importlib", "runpy", "pkgutil", "builtins"}
+BANNED_NAMES = {"__import__", "importlib", "exec", "eval", "compile", "__builtins__"}
+# Any attribute named "modules" is flagged, whatever it hangs off, which catches
+# sys.modules through an alias or another module (os.sys.modules). String-based
+# access such as getattr(os.sys, "modules") is not caught here; the runtime spies
+# are the backstop for that.
+BANNED_ATTRIBUTES = {"__dict__", "__import__", "__builtins__", "modules"}
 
 
-def agent_violations(source: str, module_name: str = "vus_panel.agents.example") -> list[str]:
-    """Ways an agent module could reach a tool without a plain from-import the walker sees."""
+def agent_violations(source: str, package: list[str] | None = None) -> list[str]:
+    """Ways a module could reach a tool without a plain from-import the walker sees.
+
+    `package` is the module's package, for resolving relative imports.
+    """
     tree = ast.parse(source)
-    package = module_name.split(".")[:-1]
+    package = package if package is not None else ["vus_panel", "agents"]
     bound: set[str] = set()
-    problems = dynamic_import_uses(source)
+    problems: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                bound.add((alias.asname or alias.name).split(".")[0])
-                if alias.name == "vus_panel" or alias.name.startswith("vus_panel."):
+                root = alias.name.split(".")[0]
+                bound.add(alias.asname or root)
+                if root in BANNED_MODULES:
+                    problems.append(f"import {alias.name}")
+                if root == "vus_panel":
                     problems.append(f"plain 'import {alias.name}' exposes the whole package")
         elif isinstance(node, ast.ImportFrom):
             base = _resolve_from(node, package)
+            if base.split(".")[0] in BANNED_MODULES:
+                problems.append(f"from {base} import")
             for alias in node.names:
                 bound.add(alias.asname or alias.name)
                 if alias.name == "*":
@@ -150,11 +153,12 @@ def agent_violations(source: str, module_name: str = "vus_panel.agents.example")
                     problems.append(f"imports the {alias.name} package itself")
                 if base == "sys" and alias.name == "modules":
                     problems.append("sys.modules")
-        elif isinstance(node, ast.Attribute):
-            if node.attr == "__dict__":
-                problems.append("__dict__")
-            if node.attr == "modules" and isinstance(node.value, ast.Name) and node.value.id == "sys":
-                problems.append("sys.modules")
+                if alias.name == "sys":
+                    problems.append(f"from {base} import sys")
+        elif isinstance(node, ast.Name) and node.id in BANNED_NAMES:
+            problems.append(node.id)
+        elif isinstance(node, ast.Attribute) and node.attr in BANNED_ATTRIBUTES:
+            problems.append(node.attr)
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             func = node.func.id
@@ -231,8 +235,7 @@ def test_import_walker_follows_shared_helpers(tmp_path):
 
 @pytest.mark.parametrize("path", AGENT_FILES, ids=lambda p: p.name)
 def test_agent_files_use_no_dynamic_access(path):
-    module_name = f"vus_panel.agents.{path.stem}" if path.stem != "__init__" else "vus_panel.agents.__init__"
-    assert agent_violations(path.read_text(encoding="utf-8"), module_name) == []
+    assert agent_violations(path.read_text(encoding="utf-8"), ["vus_panel", "agents"]) == []
 
 
 @pytest.mark.parametrize(
@@ -250,6 +253,17 @@ def test_agent_files_use_no_dynamic_access(path):
         "__import__('vus_panel.tools.sae')\n",
         "globals()['x']\n",
         "from vus_panel.tools import evo2\nevo2.__dict__\n",
+        "import sys as s\ns.modules['vus_panel.tools.sae']\n",
+        "from os import sys\nsys.modules['vus_panel.tools.sae']\n",
+        "from os import sys as s\n",
+        "import os\nos.sys.modules['vus_panel.tools.sae']\n",
+        "exec('from vus_panel.tools import sae')\n",
+        "eval('1')\n",
+        "compile('x = 1', 'f', 'exec')\n",
+        "__builtins__['__import__']('vus_panel.tools.sae')\n",
+        "import runpy\n",
+        "from pkgutil import resolve_name\n",
+        "import builtins\n",
     ],
 )
 def test_ban_detector_catches_known_bypasses(source):
@@ -257,10 +271,11 @@ def test_ban_detector_catches_known_bypasses(source):
 
 
 @pytest.mark.parametrize("agent_module", [*AGENT_MODULES, "vus_panel.agents._common"])
-def test_agent_import_closure_has_no_dynamic_imports(agent_module):
+def test_agent_import_closure_uses_no_dynamic_access(agent_module):
     for module in sorted(closure(agent_module)):
-        uses = dynamic_import_uses(module_file(module).read_text(encoding="utf-8"))
-        assert not uses, f"{module} (reached from {agent_module}) uses {uses}"
+        path = module_file(module)
+        problems = agent_violations(path.read_text(encoding="utf-8"), _package_of(module, path))
+        assert not problems, f"{module} (reached from {agent_module}): {problems}"
 
 
 def test_chair_signature_takes_findings_only():
@@ -309,6 +324,16 @@ def test_runtime_agent_calls_only_its_own_tool(name, tool_calls):
     others = [finding(a, variant_id=own.variant_id) for a in EVIDENCE_AGENTS if a != name]
     agent.rebut(own, others)
     assert tool_calls == [], "rebut must see findings only"
+
+
+def test_runtime_rebut_and_chair_with_ok_findings_call_no_tool(tool_calls):
+    ok = [finding(a, "ok", "damaging") for a in EVIDENCE_AGENTS]
+    for name in EVIDENCE_AGENTS:
+        agent = importlib.import_module(f"vus_panel.agents.{name}")
+        own = next(f for f in ok if f.agent == name)
+        agent.rebut(own, [f for f in ok if f.agent != name])
+    chair.decide("variant-A", ok, ok)
+    assert tool_calls == []
 
 
 def test_runtime_chair_calls_no_tool(tool_calls):

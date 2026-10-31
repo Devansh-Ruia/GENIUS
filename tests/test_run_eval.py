@@ -204,3 +204,46 @@ def test_cli_exits_2_on_malformed_json(tmp_path, capsys):
     path.write_text("{not json", encoding="utf-8")
     assert run_eval.main(["--reports", str(path), "--system", "panel"]) == 2
     assert "error" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("text", ["see SCV000000001", "CLNSIG=placeholder", "CLNREVSTAT placeholder", "CLNDN"])
+def test_refuses_scv_accessions_and_clinvar_vcf_tags(text):
+    item = _with_finding(rationale=text)
+    assert cites_clinvar(item)
+    with pytest.raises(EvalRefused, match="ClinVar"):
+        check_reports([item], set(IDS))
+
+
+def test_vcf_tag_match_is_case_sensitive():
+    assert not cites_clinvar(_with_finding(rationale="placeholder clnsig in lower case, a clinic visit"))
+
+
+def test_partial_coverage_needs_allow_partial(eval_inputs, tmp_path):
+    partial = [resolved_report(IDS[0], "likely_damaging", 0.9), resolved_report(IDS[1], "likely_tolerated", 0.8)]
+    reports = _write_reports(tmp_path / "partial.json", partial)
+    with pytest.raises(EvalRefused, match="2 of 5"):
+        _run(reports, eval_inputs, tmp_path)
+    record = _run(reports, eval_inputs, tmp_path, allow_partial=True)
+    assert record.config["n_test_split"] == 5
+    assert record.config["n_evaluated"] == 2
+    assert record.config["allow_partial"] is True
+
+
+def test_split_coverage_is_recorded(eval_inputs, scored_reports, tmp_path):
+    _, split_dir = eval_inputs
+    record = _run(scored_reports, eval_inputs, tmp_path)
+    metrics = json.loads((tmp_path / "runs" / "panel-test" / "metrics.json").read_text(encoding="utf-8"))
+    expected_sha = hashlib.sha256((split_dir / "test.txt").read_bytes()).hexdigest()
+    for source in (metrics, record.config):
+        assert source["n_test_split"] == 5
+        assert source["n_evaluated"] == 5
+        assert source["test_split_sha256"] == expected_sha
+
+
+def test_cli_exits_2_on_corrupt_findlay_file(eval_inputs, scored_reports, tmp_path, capsys):
+    _, split_dir = eval_inputs
+    corrupt = tmp_path / "corrupt.xlsx"
+    corrupt.write_bytes(b"not a zip file")
+    argv = ["--reports", str(scored_reports), "--system", "panel", "--split-dir", str(split_dir), "--findlay", str(corrupt)]
+    assert run_eval.main(argv) == 2
+    assert "not a readable .xlsx" in capsys.readouterr().err

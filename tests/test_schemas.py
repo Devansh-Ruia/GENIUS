@@ -271,3 +271,19 @@ def test_agent_finding_is_frozen():
     with pytest.raises(ValidationError):
         item.status = "ok"
     assert isinstance(item, AgentFinding)
+
+
+@pytest.mark.parametrize("change", [{"raw_values": {"placeholder": 0.0}}, {"sources": ["placeholder"]}], ids=["raw_values", "sources"])
+def test_report_ok_finding_keeps_its_evidence_through_rebuttal(change):
+    before = [finding("evo2", "ok", "damaging")]
+    after = [finding("evo2", "ok", "damaging", **change)]
+    with pytest.raises(ValidationError, match="raw_values or sources"):
+        report(findings_initial=before, findings_after_rebuttal=after)
+
+
+def test_report_withdrawn_ok_finding_needs_a_reason():
+    before = [finding("evo2", "ok", "damaging")]
+    with pytest.raises(ValidationError, match="withdrew"):
+        report(findings_initial=before, findings_after_rebuttal=[finding("evo2", "error")])
+    kept = report(findings_initial=before, findings_after_rebuttal=[finding("evo2", "error", revision_reason="placeholder")])
+    assert kept.findings_after_rebuttal[0].status == "error"

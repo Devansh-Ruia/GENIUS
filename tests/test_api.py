@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,10 +19,47 @@ def test_index_serves_the_page():
     assert 'id="mock-banner"' in response.text
 
 
-def test_page_never_writes_html_from_data():
+HTML_AND_CODE_SINKS = (
+    "innerHTML",
+    "outerHTML",
+    "insertAdjacentHTML",
+    "document.write",
+    "createContextualFragment",
+    "DOMParser",
+    "srcdoc",
+    "eval(",
+    "new Function",
+    "Function(",
+    "setHTMLUnsafe",
+    "parseHTMLUnsafe",
+    "javascript:",
+)
+
+
+@pytest.mark.parametrize("sink", HTML_AND_CODE_SINKS)
+def test_page_never_writes_html_or_code_from_data(sink):
+    assert sink not in client.get("/").text
+
+
+def test_page_gates_verdicts_and_marks_invalid_ones():
     page = client.get("/").text
-    for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"):
-        assert sink not in page
+    assert re.search(r'const VERDICTS = new Set\(\["damaging", "tolerated", "uncertain"\]\);', page)
+    assert "invalid verdict" in page
+    # pairState and the matrix diagonal both check the set before showing a verdict.
+    assert re.search(r"function pairState\([^)]*\)\s*\{\s*if \(!VERDICTS\.has\(first\) \|\| !VERDICTS\.has\(second\)\)", page)
+    assert re.search(r'VERDICTS\.has\(a\.verdict\) \? a\.verdict : "invalid verdict"', page)
+
+
+def test_mock_banner_starts_hidden_and_follows_is_mock():
+    page = client.get("/").text
+    tag = re.search(r'<div[^>]*\bid="mock-banner"[^>]*>', page)
+    assert tag is not None
+    assert re.search(r"\shidden(?=[\s>])", tag.group(0))
+    assert "MOCK DATA" in page
+    # The banner shows whenever any loaded record is mock ...
+    assert re.search(r'getElementById\("mock-banner"\)\.hidden\s*=\s*!state\.reports\.some\(isMock\)', page)
+    # ... and a record counts as mock unless it says mock: false, so a missing flag shows the banner.
+    assert re.search(r"function isMock\(report\)\s*\{\s*return report\.mock !== false;\s*\}", page)
 
 
 def test_review_returns_unresolved_report_with_four_unavailable_findings():

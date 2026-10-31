@@ -3,7 +3,8 @@
 Owner: orchestration-eval.
 - The answer key (Findlay class and score) is removed before any agent sees the variant.
 - Each rebuttal sees only the other three findings.
-- The chair gets the variant ID and two lists of findings, nothing else.
+- The chair gets the variant ID and two lists of findings, nothing else, and
+  must hand both lists back unchanged in its report.
 - An exception in any agent, or a finding that breaks the rebuttal rules,
   becomes a status 'error' finding for that agent.
 """
@@ -35,16 +36,20 @@ DEFAULT_AGENTS: dict[str, EvidenceAgent] = {
 
 
 def _error_finding(agent: str, variant_id: str, stage: str, detail: str) -> AgentFinding:
+    rationale = f"{agent} agent failed during {stage}: {detail}"
+    # A rebuttal-stage error replaces the agent's finding, so it records why.
+    revision_reason = f"set by the orchestrator: {detail}" if stage == "rebuttal" else None
     return AgentFinding(
         agent=agent,
         variant_id=variant_id,
         status="error",
-        rationale=f"{agent} agent failed during {stage}: {detail}",
+        rationale=rationale,
+        revision_reason=revision_reason,
     )
 
 
 def _identity_problem(agent: str, variant_id: str, result: object) -> str | None:
-    if not isinstance(result, AgentFinding):
+    if type(result) is not AgentFinding:
         return f"returned {type(result).__name__}, not AgentFinding"
     if result.agent != agent or result.variant_id != variant_id:
         return "returned a finding for another agent or variant"
@@ -58,18 +63,25 @@ def _validate_run(agent: str, variant_id: str, result: object) -> AgentFinding:
     return result if problem is None else _error_finding(agent, variant_id, "run", problem)
 
 
+def _rebuttal_problem(own: AgentFinding, result: AgentFinding) -> str | None:
+    has_reason = bool((result.revision_reason or "").strip())
+    if own.status != "ok":
+        return "rebuttal changed a finding that had no evidence" if result != own else None
+    if result.status == "ok":
+        if result.raw_values != own.raw_values or result.sources != own.sources:
+            return "rebuttal changed raw_values or sources, but rebut has no tool access"
+        if result.verdict != own.verdict and not has_reason:
+            return "verdict changed in rebuttal without a revision_reason"
+        return None
+    if not has_reason:
+        return "an ok finding was withdrawn in rebuttal without a revision_reason"
+    return None
+
+
 def _validate_rebuttal(agent: str, variant_id: str, own: AgentFinding, result: object) -> AgentFinding:
     problem = _identity_problem(agent, variant_id, result)
-    if problem is None and own.status != "ok" and result != own:
-        problem = "rebuttal changed a finding that had no evidence"
-    if (
-        problem is None
-        and own.status == "ok"
-        and result.status == "ok"
-        and result.verdict != own.verdict
-        and not (result.revision_reason or "").strip()
-    ):
-        problem = "verdict changed in rebuttal without a revision_reason"
+    if problem is None:
+        problem = _rebuttal_problem(own, result)
     return result if problem is None else _error_finding(agent, variant_id, "rebuttal", problem)
 
 
@@ -108,9 +120,17 @@ def review(
             continue
         after.append(_validate_rebuttal(name, variant_id, own, result))
 
-    report = decide(variant_id, list(initial), list(after))
-    if not isinstance(report, PanelReport):
+    # The chair gets deep copies, because raw_values and sources stay mutable inside
+    # frozen models. Its report is then compared against the untouched originals.
+    report = decide(
+        variant_id,
+        [f.model_copy(deep=True) for f in initial],
+        [f.model_copy(deep=True) for f in after],
+    )
+    if type(report) is not PanelReport:
         raise TypeError(f"chair returned {type(report).__name__}, not PanelReport")
     if report.variant_id != variant_id:
         raise ValueError("chair returned a report for a different variant")
+    if report.findings_initial != initial or report.findings_after_rebuttal != after:
+        raise ValueError("chair changed the findings it was given; it must pass both lists through unchanged")
     return report.model_copy(update={"mock": False})

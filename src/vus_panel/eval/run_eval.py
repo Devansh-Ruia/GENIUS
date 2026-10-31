@@ -3,7 +3,9 @@
 Refuses to run when:
 - any record has mock: true (or is not explicitly mock: false)
 - a report is for a variant outside the test split
-- anything in a test-split report mentions ClinVar or a ClinVar accession
+- anything in a test-split report mentions ClinVar, a ClinVar accession (VCV, RCV, SCV)
+  or a ClinVar VCF INFO tag (CLNSIG, CLNREVSTAT, CLNDN and so on)
+- the reports cover only part of the test split, unless allow_partial is set
 - the split metadata is missing, or disagrees with --seed or with the Findlay file
 
 Labels: LOF is positive, FUNC and INT are negative. The score is confidence
@@ -38,7 +40,8 @@ from vus_panel.schemas import PanelReport, RunRecord
 
 SYSTEMS = ("panel", "single_agent", "evo2_alone")
 LABEL_RULE = "LOF positive; FUNC and INT negative"
-CLINVAR_RE = re.compile(r"clinvar|\b(?:VCV|RCV)\d{6,}", re.IGNORECASE)
+CLINVAR_RE = re.compile(r"clinvar|\b(?:VCV|RCV|SCV)\d{6,}", re.IGNORECASE)
+CLINVAR_VCF_TAG_RE = re.compile(r"\bCLN[A-Z]+\b")  # VCF INFO tags are uppercase, so this one is case-sensitive
 SPLIT_META_KEYS = ("seed", "calibration_fraction", "source_sha256")
 _REPORTS = TypeAdapter(list[PanelReport])
 
@@ -79,7 +82,7 @@ def cites_clinvar(report: PanelReport) -> bool:
     for finding in [*report.findings_initial, *report.findings_after_rebuttal]:
         texts.extend([finding.rationale, finding.revision_reason or "", *finding.sources])
         texts.extend(_strings(finding.raw_values))
-    return any(CLINVAR_RE.search(text) for text in texts)
+    return any(CLINVAR_RE.search(text) or CLINVAR_VCF_TAG_RE.search(text) for text in texts)
 
 
 def check_reports(reports: list[PanelReport], test_ids: set[str]) -> None:
@@ -170,6 +173,7 @@ def run(
     runs_root: Path | None = None,
     git_commit: str | None = None,
     git_dirty: bool | None = None,
+    allow_partial: bool = False,
     n_bins: int = 10,
 ) -> RunRecord:
     """Evaluate one system's reports. `seed`, when given, must match the split's seed."""
@@ -185,7 +189,19 @@ def run(
     reports = _REPORTS.validate_python(raw)
 
     split_dir = split_dir if split_dir is not None else config.splits_dir()
-    check_reports(reports, read_ids(split_dir / "test.txt"))
+    test_path = split_dir / "test.txt"
+    test_ids = read_ids(test_path)
+    check_reports(reports, test_ids)
+    if len(reports) < len(test_ids) and not allow_partial:
+        raise EvalRefused(
+            f"the reports cover {len(reports)} of {len(test_ids)} test-split variants; "
+            "pass --allow-partial to score a subset"
+        )
+    split_coverage = {
+        "n_test_split": len(test_ids),
+        "n_evaluated": len(reports),
+        "test_split_sha256": sha256_file(test_path),
+    }
     meta = read_split_meta(split_dir)
     if seed is not None and seed != meta["seed"]:
         raise EvalRefused(f"--seed {seed} disagrees with the split's seed {meta['seed']}")
@@ -195,7 +211,7 @@ def run(
     if sha256_file(findlay_path) != meta["source_sha256"]:
         raise EvalRefused("the Findlay file differs from the one the split was made from (sha256 mismatch)")
     labels = {v.variant_id: int(v.findlay_function_class == "LOF") for v in variants}
-    metrics = evaluate(reports, labels, n_bins=n_bins)
+    metrics = {**evaluate(reports, labels, n_bins=n_bins), **split_coverage}
 
     out_dir = (runs_root if runs_root is not None else config.runs_dir()) / run_id
     record = RunRecord(
@@ -208,6 +224,8 @@ def run(
             "calibration_fraction": meta["calibration_fraction"],
             "split_source_sha256": meta["source_sha256"],
             "git_dirty": git_dirty if git_dirty is not None else git_is_dirty(),
+            "allow_partial": allow_partial,
+            **split_coverage,
             "n_bins": n_bins,
             "label_rule": LABEL_RULE,
         },
@@ -232,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split-dir", type=Path, default=None, help="default: data/splits/")
     parser.add_argument("--findlay", type=Path, default=None, help="default: data/raw/ Findlay file")
     parser.add_argument("--seed", type=int, default=None, help="optional; must match the seed in split_meta.json")
+    parser.add_argument("--allow-partial", action="store_true", help="score reports that cover only part of the test split")
     args = parser.parse_args(argv)
     try:
         record = run(
@@ -241,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
             split_dir=args.split_dir,
             findlay_path=args.findlay,
             seed=args.seed,
+            allow_partial=args.allow_partial,
         )
     except (ValueError, OSError, RuntimeError) as exc:  # ValueError covers EvalRefused, JSON and schema errors
         print(f"error: {exc}", file=sys.stderr)

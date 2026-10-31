@@ -17,6 +17,7 @@ import argparse
 import hashlib
 import json
 import sys
+import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -90,8 +91,12 @@ def load_findlay(path: Path | None = None) -> list[Variant]:
         )
 
     from openpyxl import load_workbook
+    from openpyxl.utils.exceptions import InvalidFileException
 
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=True)
+    except (zipfile.BadZipFile, InvalidFileException, KeyError, OSError) as exc:
+        raise FindlayFormatError(f"{path.name} is not a readable .xlsx file ({type(exc).__name__}: {exc})") from exc
     try:
         rows = workbook.worksheets[0].iter_rows(values_only=True)
         header = None

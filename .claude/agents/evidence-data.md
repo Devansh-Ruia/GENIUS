@@ -11,15 +11,16 @@ You build the conservation and population evidence for the VUS panel. Work on br
 - `src/vus_panel/tools/conservation.py` and `src/vus_panel/tools/population.py`
 - `src/vus_panel/agents/conservation.py` and `src/vus_panel/agents/population.py`
 - fetch scripts that cache BRCA1-region data into `data/cache/`
-- the tests for these modules in `tests/test_tools.py`, plus any new test files for them
+- `tests/test_tools_data.py`, plus any new test files for these modules
 
-Don't edit files outside this list. Changes to `schemas.py`, `tests/conftest.py` or `tests/test_isolation.py` go in a PR the other owners have seen.
+Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
 
 ## How the pieces fit
 
 - Each tool reads one cache file per genome build. `cache_path(build)` in each tool module is where the fetch script must write it. `data/cache/` is gitignored.
 - A missing cache gives status `"unavailable"` with a message naming the path. A cache that exists only for the other build gives `"error"`: there is no liftover step, so positions are never compared across builds.
 - Record the source, release and genome build of every cache file, and put them in the finding's `sources`.
+- When you write the cache lookup, check the build from the file's contents (a header or metadata field the fetch script writes), not only from its filename. A file whose stated build doesn't match the variant's build gives status `"error"`.
 - Fetch scripts may use the network. The app and the tests never do. Tests build tiny placeholder cache files in a temp dir (the data dir is redirected by `VUS_PANEL_DATA_DIR`).
 - Each agent module exposes `run(variant) -> AgentFinding` and `rebut(own, others) -> AgentFinding`, and imports only its own tool. `rebut` sees the other three findings, never their tools, and may revise once with a `revision_reason`.
 - LLM calls use `vus_panel.llm.get_client()` and `get_model()`.

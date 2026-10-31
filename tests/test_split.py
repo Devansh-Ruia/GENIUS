@@ -170,3 +170,13 @@ def test_cli_reports_format_errors_without_a_traceback(tmp_path, capsys):
     path = write_findlay_xlsx(tmp_path / "f.xlsx", [findlay_row("BENIGN", 1)])
     assert main(["--findlay", str(path), "--out", str(tmp_path / "splits")]) == 2
     assert "unknown func.class" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("name, content", [("f.xlsx", b"not a zip file"), ("f.csv", b"a,b\n")], ids=["bad_zip", "wrong_type"])
+def test_corrupt_findlay_file_raises_format_error(tmp_path, capsys, name, content):
+    path = tmp_path / name
+    path.write_bytes(content)
+    with pytest.raises(FindlayFormatError, match="not a readable .xlsx"):
+        load_findlay(path)
+    assert main(["--findlay", str(path), "--out", str(tmp_path / "splits")]) == 2
+    assert "not a readable .xlsx" in capsys.readouterr().err

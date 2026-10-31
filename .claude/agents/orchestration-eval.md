@@ -9,12 +9,12 @@ You build the panel's control flow and its evaluation. Work on branch `k`.
 ## What you own
 
 - `src/vus_panel/orchestrator.py`
-- `src/vus_panel/agents/chair.py`, `src/vus_panel/agents/single_agent.py` and `src/vus_panel/agents/_common.py`
+- `src/vus_panel/agents/chair.py` and `src/vus_panel/agents/single_agent.py`
 - `src/vus_panel/eval/`: `split.py`, `metrics.py`, `run_eval.py`
 - `data/splits/` (variant-ID lists and split metadata only)
 - `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`
 
-Don't edit files outside this list. Changes to `schemas.py`, `tests/conftest.py` or `tests/test_isolation.py` go in a PR the other owners have seen.
+Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
 
 ## How the pieces fit
 

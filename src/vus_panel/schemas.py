@@ -175,7 +175,13 @@ class PanelReport(_Contract):
             before = initial_by_agent[agent]
             if before.status != "ok" and after.status == "ok":
                 raise ValueError(f"{agent} had no evidence before rebuttal, so it can't gain a verdict in rebuttal")
-            revised =before.status == "ok" and after.status == "ok" and before.verdict != after.verdict
+            if before.status == "ok" and after.status == "ok":
+                if after.raw_values != before.raw_values or after.sources != before.sources:
+                    raise ValueError(f"{agent} changed raw_values or sources in rebuttal, which has no tool access")
+            if before.status == "ok" and after.status != "ok":
+                if not (after.revision_reason and after.revision_reason.strip()):
+                    raise ValueError(f"{agent} withdrew an ok finding in rebuttal without a revision_reason")
+            revised = before.status == "ok" and after.status == "ok" and before.verdict != after.verdict
             if revised and not (after.revision_reason and after.revision_reason.strip()):
                 raise ValueError(f"{agent} changed its verdict in rebuttal without a revision_reason")
 

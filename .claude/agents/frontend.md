@@ -13,7 +13,7 @@ You build the API surface and the output screen for genetic counselors. Work on 
 - `data/fixtures/panel_reports.json`
 - `tests/test_api.py` and `tests/test_fixtures.py`
 
-Don't edit files outside this list. Changes to `schemas.py`, `tests/conftest.py` or `tests/test_isolation.py` go in a PR the other owners have seen.
+Don't edit files outside this list. Shared files: `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`, `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `pyproject.toml`, `README.md` and `.claude/`. Change these only in a PR that every affected owner has reviewed.
 
 ## How the pieces fit
 
