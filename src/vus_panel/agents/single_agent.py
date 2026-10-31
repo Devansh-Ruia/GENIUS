@@ -7,7 +7,7 @@ Interpretation is not written yet, so every report is 'unresolved'.
 from __future__ import annotations
 
 from vus_panel.agents._common import ACMG_VUS_RULE, PATIENT_UNRESOLVED_TEXT
-from vus_panel.schemas import AgentFinding, PanelReport, ToolResult, Variant
+from vus_panel.schemas import AgentFinding, AnswerKeyError, PanelReport, ToolResult, Variant
 from vus_panel.tools import conservation, evo2, population, sae
 
 AGENT = "single_agent"
@@ -24,6 +24,8 @@ def _run_tools(variant: Variant) -> list[ToolResult]:
     for name, call in calls:
         try:
             results.append(call(variant))
+        except AnswerKeyError:  # a leaked answer key fails the review, never becomes an error result
+            raise
         except Exception as exc:  # a broken tool becomes an error result, never a value
             results.append(ToolResult(tool=name, status="error", message=f"{name} tool raised {type(exc).__name__}: {exc}"))
     return results

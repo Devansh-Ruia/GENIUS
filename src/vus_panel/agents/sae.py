@@ -6,13 +6,14 @@ Owner: evidence-models. Imports its own tool and nothing from another agent.
 from __future__ import annotations
 
 from vus_panel.agents._common import finding_from_tool, rebut_unchanged
-from vus_panel.schemas import AgentFinding, Variant
+from vus_panel.schemas import AgentFinding, Variant, reject_answer_key
 from vus_panel.tools import sae as sae_tool
 
 AGENT = "sae"
 
 
 def run(variant: Variant) -> AgentFinding:
+    reject_answer_key(variant, f"agents.{AGENT}.run")
     result = sae_tool.feature_activations(variant)
     return finding_from_tool(AGENT, variant.variant_id, result)
 

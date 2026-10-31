@@ -8,13 +8,14 @@ reports the tool as unavailable, and it sends no request.
 from __future__ import annotations
 
 from vus_panel import config
-from vus_panel.schemas import ToolResult, Variant
+from vus_panel.schemas import ToolResult, Variant, reject_answer_key
 
 TOOL = "sae"
 OWNER = "evidence-models"
 
 
 def feature_activations(variant: Variant) -> ToolResult:
+    reject_answer_key(variant, f"tools.{TOOL}.feature_activations")
     if config.evo2_backend_url() is None:
         return ToolResult(
             tool=TOOL,

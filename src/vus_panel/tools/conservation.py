@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vus_panel import config
-from vus_panel.schemas import GenomeBuild, ToolResult, Variant
+from vus_panel.schemas import GenomeBuild, ToolResult, Variant, reject_answer_key
 
 TOOL = "conservation"
 OWNER = "evidence-data"
@@ -26,6 +26,7 @@ def cache_path(build: GenomeBuild) -> Path:
 
 
 def conservation_score(variant: Variant) -> ToolResult:
+    reject_answer_key(variant, f"tools.{TOOL}.conservation_score")
     path = cache_path(variant.genome_build)
     if path.is_file():
         return ToolResult(

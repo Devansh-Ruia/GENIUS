@@ -133,6 +133,7 @@ The source of truth is `src/vus_panel/schemas.py`, tested in `tests/test_schemas
   - a changed verdict, or an ok finding withdrawn in rebuttal, carries a `revision_reason`
 - **RunRecord**: `run_id`, `git_commit`, `config`, `seed`, `started_at` (timezone-aware), `variant_ids`, `outputs_path`.
 - **Tool isolation**: each agent receives only its own tool functions. A test fails if any agent module imports another agent's tool module, directly or through a shared helper, and another checks that the chair receives findings only.
+- **Answer key**: every agent `run()` and tool entry point raises `AnswerKeyError` on a Variant with `findlay_function_class` or `findlay_score` set, and `POST /review` rejects a body that includes either field, even as null, with a 422 that names it.
 
 Tools return a `ToolResult` with the same rule: no values unless status is `"ok"`. A missing backend or data file gives `"unavailable"` with a message naming what's missing and who owns it. A cache that exists only for the other genome build gives `"error"`, because there is no liftover step.
 

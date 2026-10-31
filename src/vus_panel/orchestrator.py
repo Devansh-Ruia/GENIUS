@@ -6,7 +6,8 @@ Owner: orchestration-eval.
 - The chair gets the variant ID and two lists of findings, nothing else, and
   must hand both lists back unchanged in its report.
 - An exception in any agent, or a finding that breaks the rebuttal rules,
-  becomes a status 'error' finding for that agent.
+  becomes a status 'error' finding for that agent. AnswerKeyError is the
+  exception: it propagates, so a leaked answer key fails the whole review.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Protocol
 
 from vus_panel.agents import chair as chair_agent
 from vus_panel.agents import conservation, evo2, population, sae
-from vus_panel.schemas import EVIDENCE_AGENTS, AgentFinding, PanelReport, Variant
+from vus_panel.schemas import EVIDENCE_AGENTS, AgentFinding, AnswerKeyError, PanelReport, Variant
 
 
 class EvidenceAgent(Protocol):
@@ -104,6 +105,8 @@ def review(
     for name, agent in panel.items():
         try:
             result = agent.run(blinded)
+        except AnswerKeyError:
+            raise
         except Exception as exc:
             initial.append(_error_finding(name, variant_id, "run", f"{type(exc).__name__}: {exc}"))
             continue
@@ -115,6 +118,8 @@ def review(
         others = [f.model_copy(deep=True) for i, f in enumerate(initial) if i != index]
         try:
             result = agent.rebut(own.model_copy(deep=True), others)
+        except AnswerKeyError:
+            raise
         except Exception as exc:
             after.append(_error_finding(name, variant_id, "rebuttal", f"{type(exc).__name__}: {exc}"))
             continue

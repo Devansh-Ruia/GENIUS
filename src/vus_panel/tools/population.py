@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vus_panel import config
-from vus_panel.schemas import GenomeBuild, ToolResult, Variant
+from vus_panel.schemas import GenomeBuild, ToolResult, Variant, reject_answer_key
 
 TOOL = "population"
 OWNER = "evidence-data"
@@ -26,6 +26,7 @@ def cache_path(build: GenomeBuild) -> Path:
 
 
 def allele_frequency(variant: Variant) -> ToolResult:
+    reject_answer_key(variant, f"tools.{TOOL}.allele_frequency")
     path = cache_path(variant.genome_build)
     if path.is_file():
         return ToolResult(

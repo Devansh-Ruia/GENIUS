@@ -20,6 +20,7 @@ ToolName = Literal["evo2", "sae", "conservation", "population"]
 Call = Literal["likely_damaging", "likely_tolerated", "unresolved"]
 
 EVIDENCE_AGENTS: tuple[str, ...] = ("evo2", "sae", "conservation", "population")
+ANSWER_KEY_FIELDS: tuple[str, ...] = ("findlay_function_class", "findlay_score")
 
 _BASE_RE = re.compile(r"^[ACGT]$")
 _CHROM_RE = re.compile(r"^(?:[1-9]|1[0-9]|2[0-2]|X|Y|MT)$")
@@ -77,6 +78,24 @@ class Variant(_Contract):
     def without_answer_key(self) -> "Variant":
         """Return a copy with the Findlay fields removed, safe to hand to an agent."""
         return Variant(**self.model_dump(exclude={"findlay_function_class", "findlay_score"}))
+
+
+class AnswerKeyError(ValueError):
+    """A Variant carrying the Findlay answer key reached an agent or a tool."""
+
+
+def reject_answer_key(variant: Variant, receiver: str) -> None:
+    """Raise AnswerKeyError if any Findlay field on the variant is set.
+
+    Every agent run() and tool entry point calls this first, so a labeled
+    variant fails loudly on any call path, not only through the orchestrator.
+    """
+    carried = [name for name, value in variant.model_dump(include=set(ANSWER_KEY_FIELDS)).items() if value is not None]
+    if carried:
+        raise AnswerKeyError(
+            f"{receiver} was handed a Variant carrying the Findlay answer key ({', '.join(carried)}). "
+            "Call variant.without_answer_key() first."
+        )
 
 
 def parse_variant_id(variant_id: str) -> Variant:
