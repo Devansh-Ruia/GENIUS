@@ -116,7 +116,7 @@ def test_cross_build_cache_error_passes_through(tmp_path):
     assert report.call == "unresolved"
 
 
-def test_chair_reports_verdict_conflicts_without_making_a_call():
+def test_chair_reports_verdict_conflicts_and_makes_no_call_without_an_llm():
     findings = [
         AgentFinding(agent="evo2", variant_id="variant-A", status="ok", verdict="damaging", rationale="placeholder"),
         AgentFinding(agent="population", variant_id="variant-A", status="ok", verdict="tolerated", rationale="placeholder"),
@@ -124,7 +124,10 @@ def test_chair_reports_verdict_conflicts_without_making_a_call():
     report = chair.decide("variant-A", findings, findings)
     assert report.call == "unresolved"
     assert report.conflicts == ["evo2 says damaging, population says tolerated"]
-    assert "not implemented" in report.counselor_summary
+    assert report.confidence is None
+    assert report.calibrated is False
+    assert report.driving_agents == []
+    assert "VUS" in report.counselor_summary
 
 
 # Rebuttal rules: a break becomes a status "error" finding for that agent
