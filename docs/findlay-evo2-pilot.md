@@ -118,7 +118,18 @@ with the image's torch, Transformer Engine, flash-attn and numpy held as pip
 constraints. Then install this package in editable mode, and add the mounted
 repo as a git `safe.directory`, because the container runs as root. Vortex
 writes `activations_debug.log` to the working directory on import. With the
-pinned config it records errors only.
+pinned config it records errors only. These are the commands that worked:
+
+```bash
+docker run -d --name evo2pilot --gpus all --ipc=host --ulimit memlock=-1 \
+  --ulimit stack=67108864 -v ~/GENIUS:/workspace/GENIUS -w /workspace/GENIUS \
+  nvcr.io/nvidia/pytorch:25.04-py3 sleep infinity
+docker exec evo2pilot sh -c 'pip list --format=freeze | grep -iE "^(torch|transformer.engine|flash.attn|numpy)==" > /tmp/keep.txt'
+docker exec evo2pilot pip install -c /tmp/keep.txt \
+  "evo2 @ git+https://github.com/ArcInstitute/evo2.git@53f195997257c56c00e5ef8d33a54f5baad143a6"
+docker exec evo2pilot pip install -c /tmp/keep.txt -e .
+docker exec evo2pilot git config --global --add safe.directory /workspace/GENIUS
+```
 
 In the container, with the service on loopback:
 
@@ -135,7 +146,8 @@ python -m vus_panel.eval.score_split status
   the run's first session: protocol, model, Arc source and checkpoint
   revisions and hashes, config, reference, precision and dependency versions.
   Session ID, GPU, load time and warm-up may differ, and each session records
-  its own.
+  its own. After a code change, a run can't resume; start a fresh one with
+  `--new`.
 - Each finished attempt is appended to `outcomes.jsonl` and fsynced. A final
   attempt is an ok score, or a backend error about the variant itself
   (`context` or `inference`). Any other failure stops the session, and the
