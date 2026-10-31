@@ -104,6 +104,51 @@ calibration runtime is estimated from successful scoring times, with startup
 costs separate. Supply `--billing-rate-usd-per-hour` only when the actual instance
 rate is known. An unavailable backend yields an incomplete run, not model scores.
 
+## Full split scoring
+
+`vus_panel.eval.score_split` scores every ID in the frozen `calibration.txt` or
+`test.txt` once, with the same service and protocol as the pilot. Unlike the
+pilot runner, it resumes.
+
+The environment that worked on `dying-azure-toucan` (H100 PCIe, driver 570, host
+Python 3.10, no host CUDA toolkit) is the NGC image
+`nvcr.io/nvidia/pytorch:25.04-py3`, which ships Python 3.12, Transformer Engine
+2.2 and flash-attn 2.7.3. Inside it, install Evo 2 from the pinned Arc commit
+with the image's torch, Transformer Engine, flash-attn and numpy held as pip
+constraints. Then install this package in editable mode, and add the mounted
+repo as a git `safe.directory`, because the container runs as root. Vortex
+writes `activations_debug.log` to the working directory on import. With the
+pinned config it records errors only.
+
+In the container, with the service on loopback:
+
+```bash
+EVO2_BACKEND_URL=http://127.0.0.1:8001 python -m vus_panel.eval.score_split run --split calibration
+EVO2_BACKEND_URL=http://127.0.0.1:8001 python -m vus_panel.eval.score_split run --split test
+python -m vus_panel.eval.score_split status
+```
+
+- `run` resumes the newest unfinished run for the split, or starts one. After a
+  finished run it refuses unless given `--new`.
+- Every start and resume re-verifies the frozen split bytes. A resume also
+  needs the same runtime code and git commit. The backend's identity must match
+  the run's first session: protocol, model, Arc source and checkpoint
+  revisions and hashes, config, reference, precision and dependency versions.
+  Session ID, GPU, load time and warm-up may differ, and each session records
+  its own.
+- Each finished attempt is appended to `outcomes.jsonl` and fsynced. A final
+  attempt is an ok score, or a backend error about the variant itself
+  (`context` or `inference`). Any other failure stops the session, and the
+  next `run` tries that variant again. Every attempt stays in the file.
+- `runner.lock` allows one runner per run directory. A lock left by a killed
+  runner needs `--force-unlock`, after checking that no runner is alive.
+- Calibration runs join Findlay labels only after the outcomes are saved and
+  reread, then write `evaluation.jsonl`, `metrics.json` and `report.md`. Test
+  runs write label-free outcomes and `progress.json` only. Test-split
+  evaluation belongs to `run_eval`.
+- Exit status is 0 when every ID is final, 1 when IDs remain, and 2 when the
+  run was refused.
+
 ## Sources
 
 - [Publisher workbook](https://static-content.springer.com/esm/art%3A10.1038%2Fs41586-018-0461-z/MediaObjects/41586_2018_461_MOESM3_ESM.xlsx)
