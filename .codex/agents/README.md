@@ -9,8 +9,8 @@ These project-local roles mirror the ownership defined in `README.md` and
 | `checker` | Review without editing; contracts, isolation, security, tests |
 | `frontend` | `web/` only; logical branch `m` |
 | `evidence-data` | Conservation/population tools and agents; logical branch `a` |
-| `evidence-models` | Evo 2/SAE tools, agents, and service client; logical branch `d` |
-| `orchestration-eval` | Orchestrator, API, chair, baselines, evaluation, fixtures; logical branch `d` |
+| `evidence-models` | Evo 2/SAE tools, agents, and `scoring/` (contracts, client, GPU service); logical branch `d` |
+| `orchestration-eval` | Orchestrator, API, chair, baselines, evaluation, timing pilot, fixtures; logical branch `d` |
 
 ## Usage
 

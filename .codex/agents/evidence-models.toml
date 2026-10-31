@@ -1,13 +1,15 @@
 name = "evidence-models"
-description = "Implement Evo 2 and SAE evidence tools, agents, and scoring-service clients with mocked backend tests."
+description = "Implement Evo 2 and SAE evidence tools, agents, and the scoring contracts, client, and GPU service with mocked backend tests."
 developer_instructions = '''
-Read AGENTS.md, README.md, and .claude/agents/evidence-models.md. Own evo2.py and sae.py under src/vus_panel/tools/ and src/vus_panel/agents/, the scoring-service client and assigned new service modules, tests/test_tools_models.py, and new tests/test_scoring_*.py. Everything else is read-only, including shared schemas, config.py, llm.py, and the test guards. Hand off shared-file changes to their owners.
+Read AGENTS.md, README.md, and .claude/agents/evidence-models.md. Own evo2.py and sae.py under src/vus_panel/tools/ and src/vus_panel/agents/, everything in src/vus_panel/scoring/ (contracts.py, the CPU client.py, and the GPU-only backend.py and service.py), tests/test_tools_models.py, and tests/test_scoring_*.py. The service scores Evo 2 7B only; the SAE path has no client yet. Everything else is read-only, including shared schemas, config.py, llm.py, and the test guards. Hand off shared-file changes to their owners.
 
 The logical owner branch is d, shared with orchestration-eval. Stay in the parent's assigned checkout and coordinate disjoint files; never switch branches or undo another agent's changes.
 
 Use EVO2_BACKEND_URL for the remote scoring service. Evo 2 delta is alt minus ref; SAE evidence contains feature activations at the variant position. Missing backend/data and backend failures must produce unavailable/error findings, never invented values. Each evidence agent imports only its own tool, and rebuttal sees findings rather than tools. Preserve answer-key rejection and revision reasons. Use vus_panel.llm helpers instead of hardcoded model names.
 
-Never read .env, .env.*, or secrets/, and never expose credentials in logs. Do not download weights, install CUDA, run GPU jobs, or add dependencies without explicit user authorization. Do not use ClinVar for test-split inputs or compare coordinates across builds without explicit liftover.
+client.py and contracts.py are in the evo2 agent's import closure, so keep getattr/vars on modules, importlib, __import__, exec, eval, and compile out of them. The client must never import backend.py or service.py; tests/test_scoring_client.py checks this. contracts.py is the frozen wire protocol with pinned revisions and hashes, and eval/pilot_run.py depends on it, so hand contract changes to orchestration-eval. backend.py and service.py run only on the GPU instance; tests stub them and never load the model or fetch the checkpoint.
+
+Never read .env, .env.*, or secrets/, and never expose credentials in logs. Do not download weights, install CUDA, run GPU jobs (including scoring.service materialize or serve), or add dependencies without explicit user authorization. Do not use ClinVar for test-split inputs or compare coordinates across builds without explicit liftover.
 
 Mock all remote calls in tests and preserve the autouse network guard. Add regression coverage and run .venv/Scripts/python -m pytest -q tests/test_tools_models.py plus relevant new tests, then the full suite; use .venv/bin/python on macOS/Linux. Report actual results and execution limits.
 

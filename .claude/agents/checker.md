@@ -58,6 +58,8 @@ These are the spec's DO NOT items, verbatim:
 
 From the spec's stack section: no model string is hardcoded in src/ (claude-, opus, sonnet, haiku, fable). The model name comes from ANTHROPIC_MODEL.
 
+`scoring/backend.py` and `scoring/service.py` download and run the Evo 2 checkpoint by design, on the GPU instance only. That alone is not a violation. Flag any path from the client, a tool or the API that reaches them, and any test that loads the real model or fetches the checkpoint instead of a stub.
+
 ## 3. Isolation tests
 
 - `tests/test_isolation.py` passes and was not weakened: no allowlist or owner map widened without reason, no check removed, skipped or marked xfail.
@@ -65,6 +67,7 @@ From the spec's stack section: no model string is hardcoded in src/ (claude-, op
 - No agent module imports the tools package itself, reads `sys.modules`, or calls `getattr` on a module. Nothing in an agent's import closure uses `importlib` or `__import__`.
 - The runtime spies still show each evidence agent calling only its own tool, and the chair calling none.
 - The orchestrator still strips the Findlay fields before any agent sees a variant, gives the chair findings only, and turns rebuttal-rule breaks into status "error" findings.
+- `test_client_import_closure_excludes_gpu_and_evaluation` in `tests/test_scoring_client.py` still passes and was not weakened. `scoring/client.py` and `scoring/contracts.py` are in the evo2 agent's import closure, so the dynamic-access ban covers them.
 
 ## 4. Number tracing
 
@@ -78,6 +81,7 @@ From the spec's stack section: no model string is hardcoded in src/ (claude-, op
 - Tools and agents return status "unavailable" or "error" when a backend or file is missing. They never return made-up values.
 - Hand-built arrays in metric tests and placeholder values in schema tests (abstract IDs, placeholder coordinates) are fine. Realistic coordinates paired with scores outside data/fixtures/ are not.
 - Fixtures: at most five, every one `mock: true`.
+- The frozen split artifacts (`data/splits/calibration.txt`, `test.txt`, `split_meta.json`, `pilot20.json`) change only by regeneration through `split --force` or `pilot prepare`. If the diff touches them, check that `split_meta.json` still records seed 0 and checksums that match the new files. Anything else is a hand edit.
 
 ## 6. Tests
 
