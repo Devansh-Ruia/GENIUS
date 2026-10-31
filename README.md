@@ -74,9 +74,11 @@ Configuration comes from environment variables. Copy `.env.example` to `.env` an
 | --- | --- |
 | `ANTHROPIC_API_KEY` | agent LLM calls |
 | `ANTHROPIC_MODEL` | the model name, read at runtime and never hardcoded |
-| `EVO2_BACKEND_URL` | the GPU backend that serves Evo 2 7B and the SAE |
+| `EVO2_BACKEND_URL` | URL of the Evo 2 and SAE scoring service on the Brev instance |
 
-Make the calibration/test split once the Findlay file is in place. Put `41586_2018_461_MOESM3_ESM.xlsx` from Findlay et al. 2018 in `data/raw/`. Nothing in this repo downloads it.
+Small reference files that every teammate needs are committed in `data/reference/`. Each one has an entry in `data/reference/MANIFEST.json` with its path, source URL, release or version, download date, genome build, license as stated by the source, sha256, size in bytes and owner branch. `tests/test_reference_data.py` fails if a file has no entry, a checksum or size doesn't match, a file is over 50 MiB, or an entry has an empty source or license. The repo is public, so add only files whose license allows public redistribution, and never model weights, SAE weights or genome-wide files. Full-size downloads stay in the gitignored `data/raw/` and `data/cache/`.
+
+Make the calibration/test split once the Findlay file is in place. Put `41586_2018_461_MOESM3_ESM.xlsx` from Findlay et al. 2018 in `data/raw/`. Nothing in this repo downloads it. It is not committed: no reuse license for it was found, and the repo is public.
 
 ```bash
 .venv/Scripts/python -m vus_panel.eval.split   # Windows
@@ -99,6 +101,7 @@ README.md
 pyproject.toml
 .env.example              ANTHROPIC_API_KEY, ANTHROPIC_MODEL, EVO2_BACKEND_URL (empty)
 .gitignore                .env, data/raw/, data/cache/, runs/, Python tooling
+.gitattributes            data/reference/ files are stored and checked out byte for byte
 src/vus_panel/
   schemas.py              the contracts below
   config.py               repo paths and env getters
@@ -111,9 +114,10 @@ src/vus_panel/
 web/index.html            the output screen: vanilla JS, inline SVG, no build step
 data/splits/              committed variant-ID lists only
 data/fixtures/            mock PanelReports for UI work only
+data/reference/           small tracked reference files, each listed with its sha256 in MANIFEST.json
 runs/                     run outputs with config, seed, git commit, timestamp (not committed)
 tests/
-.claude/agents/           Claude Code subagents, one per workstream plus the checker
+.claude/agents/           Claude Code subagents: evidence-models and orchestration-eval (d), evidence-data (a), frontend (m), the checker, and maker
 .claude/hooks/            the checker's Bash guard
 ```
 
@@ -155,7 +159,7 @@ Shared files, read-only for every subagent:
 - `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
 - `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
 - `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
-- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+- `pyproject.toml`, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `.claude/`
 
 Change these only in a PR that every affected owner has reviewed.
 

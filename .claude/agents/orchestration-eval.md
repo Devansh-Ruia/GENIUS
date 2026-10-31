@@ -14,14 +14,15 @@ You build the panel's control flow, its API and its evaluation. Work on branch `
 - `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, and the Evo 2-alone baseline (a future file, not written yet)
 - `data/splits/` (variant-ID lists and split metadata only)
 - `data/fixtures/` (the mock PanelReports)
-- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`
+- `data/reference/MANIFEST.json`. evidence-data adds and edits the entries whose `owner_branch` is `"a"`.
+- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`, `tests/test_reference_data.py`
 
 Everything else in the repo is read-only for you, including these shared files:
 
 - `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
 - `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
 - `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
-- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+- `pyproject.toml`, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `.claude/`
 
 If a read-only file needs a change, put it in your hand-off for that file's owner instead of editing it. For a shared file, the hand-off goes to the branch owners who review the PR.
 
@@ -31,7 +32,7 @@ If a read-only file needs a change, put it in your hand-off for that file's owne
 - Each `rebut` sees only the other three findings. Keep both versions of every finding.
 - The chair sees findings only: `decide(variant_id, findings_initial, findings_after_rebuttal)`. It never gets a tool or the variant record. With no ok findings the call is `"unresolved"`.
 - `single_agent` has all four tools and no rebuttal round. It is the baseline.
-- The Findlay file is `data/raw/41586_2018_461_MOESM3_ESM.xlsx`, header on the third row, positions hg19 (GRCh37). Never download it. A missing file raises a clear error.
+- The Findlay file is `data/raw/41586_2018_461_MOESM3_ESM.xlsx`, header on the third row, positions hg19 (GRCh37). Never download it. A missing file raises a clear error. It stays in the gitignored `data/raw/`, not `data/reference/`: no reuse license for it was found, and the repo is public.
 - The split uses seed 0, stratified by function class, ordered by sha256. Split files hold IDs only, never scores or classes.
 - AUROC is always reported with coverage. LOF is positive, FUNC and INT negative. Any standard deviation uses ddof=1. Fit calibration on the calibration split only.
 - `run_eval` refuses `mock: true` records, variants outside the test split and ClinVar-sourced findings, and writes `runs/<run_id>/run_record.json` and `metrics.json`.

@@ -11,14 +11,15 @@ You build the conservation and population evidence for the VUS panel, from GRCh3
 - `src/vus_panel/tools/conservation.py` and `src/vus_panel/tools/population.py`
 - `src/vus_panel/agents/conservation.py` and `src/vus_panel/agents/population.py`
 - fetch scripts that build the GRCh37 BRCA1-region phyloP and gnomAD caches in `data/cache/`. The scripts don't exist yet, and `data/cache/` is gitignored, so its files are never committed.
-- `tests/test_tools_data.py`
+- phyloP and gnomAD BRCA1-region files in `data/reference/` (none yet), and their entries in `data/reference/MANIFEST.json`. In the manifest you may add or edit only entries whose `owner_branch` is `"a"`; the file itself belongs to orchestration-eval.
+- `tests/test_tools_data.py`, and new tests named `tests/test_fetch_*.py`
 
 Everything else in the repo is read-only for you, including these shared files:
 
 - `src/vus_panel/__init__.py`, `src/vus_panel/agents/__init__.py`, `src/vus_panel/tools/__init__.py`
 - `src/vus_panel/config.py`, `src/vus_panel/llm.py`, `src/vus_panel/schemas.py`, `src/vus_panel/agents/_common.py`
 - `tests/conftest.py`, `tests/_factories.py`, `tests/test_isolation.py`, `tests/test_answer_key_guard.py`, `tests/test_schemas.py`, `tests/test_llm.py`, `tests/test_network_guard.py`, `tests/test_checker_guard.py`
-- `pyproject.toml`, `.gitignore`, `.env.example`, `README.md`, `.claude/`
+- `pyproject.toml`, `.gitignore`, `.gitattributes`, `.env.example`, `README.md`, `.claude/`
 
 If a read-only file needs a change, put it in your hand-off for that file's owner instead of editing it. For a shared file, the hand-off goes to the branch owners who review the PR.
 
@@ -27,6 +28,7 @@ If a read-only file needs a change, put it in your hand-off for that file's owne
 - Each tool reads one cache file per genome build. `cache_path(build)` in each tool module is where the fetch script must write it. `data/cache/` is gitignored.
 - A missing cache gives status `"unavailable"` with a message naming the path. A cache that exists only for the other build gives `"error"`: there is no liftover step, so positions are never compared across builds.
 - Record the source, release and genome build of every cache file, and put them in the finding's `sources`.
+- A region file goes in `data/reference/` only if it is under 50 MiB and its license allows public redistribution, because the repo is public. Give it a manifest entry with every field filled in: path, source URL, release, download date, genome build, license as stated by the source, sha256, size in bytes, and owner branch `"a"`. `tests/test_reference_data.py` checks the sha256 and size. Hand-check five positions against the source before you commit it. Larger files stay in `data/cache/`.
 - When you write the cache lookup, check the build from the file's contents (a header or metadata field the fetch script writes), not only from its filename. A file whose stated build doesn't match the variant's build gives status `"error"`.
 - Fetch scripts may use the network. The app and the tests never do. Tests build tiny placeholder cache files in a temp dir (the data dir is redirected by `VUS_PANEL_DATA_DIR`).
 - Each agent module exposes `run(variant) -> AgentFinding` and `rebut(own, others) -> AgentFinding`, and imports only its own tool. `rebut` sees the other three findings, never their tools, and may revise once with a `revision_reason`.
