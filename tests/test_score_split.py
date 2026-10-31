@@ -230,17 +230,19 @@ def test_unreadable_in_flight_marker_is_recorded_and_resume_continues(prepared, 
     ids = split_ids("calibration")
     install_client(monkeypatch, events={3: "interrupt"})
     directory, _ = score_split.run_split("calibration", backend_url=BACKEND)
-    (directory / "in_flight.json").write_bytes(b"")
+    (directory / "in_flight.json").write_bytes(b"{not json")
     calls = install_client(monkeypatch, session_id="session-2")
     _, complete = score_split.run_split("calibration", backend_url=BACKEND)
     assert complete and calls == ids[3:]
     repairs = data.read_json(directory / "run_record.json")["repairs"]
-    assert len(repairs) == 1 and repairs[0]["unreadable_in_flight_bytes"] == 0
+    assert len(repairs) == 1 and repairs[0]["unreadable_in_flight_bytes"] == 9
+    assert (directory / repairs[0]["saved_to"]).read_bytes() == b"{not json"
 
 
 @pytest.mark.parametrize("corruption,message", [
     ("unknown_session", "does not record"),
     ("duplicate_attempt", "repeats attempt"),
+    ("duplicate_final", "more than one final result"),
     ("outside_split", "not in the calibration split"),
 ])
 def test_resume_refuses_outcomes_that_break_invariants(prepared, monkeypatch, corruption, message):
@@ -249,6 +251,8 @@ def test_resume_refuses_outcomes_that_break_invariants(prepared, monkeypatch, co
     row = read_lines(directory / "outcomes.jsonl")[0]
     if corruption == "unknown_session":
         row = {**row, "attempt": 2, "session_id": "never-recorded"}
+    elif corruption == "duplicate_final":
+        row = {**row, "attempt": 2}
     elif corruption == "outside_split":
         row = {**row, "variant_id": split_ids("test")[0]}
     score_split._append(directory / "outcomes.jsonl", row)
@@ -302,6 +306,11 @@ def test_unreachable_backend_blocks_then_resumes(prepared, monkeypatch):
 
 def test_test_split_writes_no_labels_or_discrimination(prepared, monkeypatch):
     ids = split_ids("test")
+    # Another tool's run directory whose name matches *-test-* must be skipped, not parsed.
+    foreign = config.runs_dir() / "panel-test-v1"
+    foreign.mkdir(parents=True)
+    data.write_json(foreign / "run_record.json", {"run_id": "panel-test-v1"})
+    assert score_split.status_lines("test") == ["test: no run yet"]
     calls = install_client(monkeypatch)
     directory, complete = score_split.run_split("test", backend_url=BACKEND)
     assert complete and calls == ids
@@ -339,6 +348,12 @@ def test_finished_run_needs_new_flag_and_status_reports_counts(prepared, monkeyp
     assert score_split.main(["run", "--split", "calibration", "--backend", BACKEND]) == 0
     with pytest.raises(ValueError, match="--new"):
         score_split.run_split("calibration", backend_url=BACKEND)
+    (directory / "runner.lock").write_text('{"pid": 1}', encoding="utf-8")
+    with pytest.raises(ValueError, match="--new"):
+        score_split.run_split("calibration", backend_url=BACKEND)
+    with pytest.raises(ValueError, match="--new"):
+        score_split.run_split("calibration", backend_url=BACKEND, force_unlock=True)
+    assert len(data.read_json(directory / "run_record.json")["lock_overrides"]) == 1
     with pytest.raises(ValueError, match="do not combine"):
         score_split.run_split("calibration", backend_url=BACKEND, new=True, run_dir=directory)
     fresh, complete = score_split.run_split("calibration", backend_url=BACKEND, new=True)

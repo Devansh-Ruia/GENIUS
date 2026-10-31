@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import os
+import re
 import socket
 import statistics
 import sys
@@ -65,6 +66,14 @@ def _write_lines(path: Path, rows: list[dict[str, Any]]) -> None:
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(temporary, path)
+    _fsync_directory(path.parent)
+
+
+def _save_bytes(path: Path, value: bytes) -> None:
+    with path.open("wb") as handle:
+        handle.write(value)
+        handle.flush()
+        os.fsync(handle.fileno())
     _fsync_directory(path.parent)
 
 
@@ -167,8 +176,11 @@ def _find_run(split: str, run_dir: Path | None) -> Path | None:
         return run_dir
     if not config.runs_dir().is_dir():
         return None
-    candidates = [path for path in sorted(config.runs_dir().glob(f"*-{split}-*"))
-                  if (path / "run_record.json").is_file() and _load_record(path)["split"] == split]
+    # Only names this module creates; other tools' run directories are skipped, not parsed.
+    own = re.compile(rf"^\d{{8}}T\d{{6}}Z-{split}-[0-9a-f]{{12}}$")
+    candidates = [path for path in sorted(config.runs_dir().iterdir())
+                  if own.match(path.name) and (path / "run_record.json").is_file()
+                  and _load_record(path)["split"] == split]
     return candidates[-1] if candidates else None
 
 
@@ -177,6 +189,8 @@ def _acquire_lock(directory: Path, force_unlock: bool) -> tuple[Path, dict[str, 
     override = None
     if lock.exists():
         if not force_unlock:
+            if _load_record(directory)["state"] in FINISHED_STATES:
+                raise ValueError(f"{directory.name} is finished; pass --new to start another run")
             raise ValueError(f"{lock} exists. If `tmux ls` shows no live runner, pass --force-unlock.")
         override = {"at": utc_now(), "previous": lock.read_text(encoding="utf-8", errors="replace")}
         lock.unlink()
@@ -211,7 +225,7 @@ def _recover(directory: Path, record: dict[str, Any], ids: list[str]) -> None:
     rows, torn = _read_outcomes(output)
     if torn:
         sidecar = directory / f"outcomes.torn.{len(record['repairs'])}"
-        sidecar.write_bytes(torn)
+        _save_bytes(sidecar, torn)
         record["repairs"].append({"at": utc_now(), "dropped_torn_bytes": len(torn), "saved_to": sidecar.name})
         _save_json(record_path, record)
         _write_lines(output, rows)
@@ -222,7 +236,10 @@ def _recover(directory: Path, record: dict[str, Any], ids: list[str]) -> None:
             in_flight = {key: in_flight[key] for key in ("variant_id", "attempt", "session_id", "started_at")}
         except (ValueError, KeyError):
             in_flight = None
-            record["repairs"].append({"at": utc_now(), "unreadable_in_flight_bytes": in_flight_path.stat().st_size})
+            sidecar = directory / f"in_flight.unreadable.{len(record['repairs'])}"
+            _save_bytes(sidecar, in_flight_path.read_bytes())
+            record["repairs"].append({"at": utc_now(), "unreadable_in_flight_bytes": sidecar.stat().st_size,
+                                      "saved_to": sidecar.name})
             _save_json(record_path, record)
         if in_flight and not any(row["variant_id"] == in_flight["variant_id"] and row["attempt"] == in_flight["attempt"]
                                  for row in rows):
@@ -355,18 +372,22 @@ def run_split(split: str, *, backend_url: str | None = None, timeout: float = 60
     ids, ids_bytes, split_meta_bytes, variants = _selection(split)
     existing = None if new else _find_run(split, run_dir)
     if new:
-        latest = _find_run(split, None)
-        if latest is not None and _load_record(latest)["state"] not in FINISHED_STATES:
-            print(f"Leaving unfinished {split} run {latest.name} as it is", flush=True)
+        try:  # Best effort: an unreadable older run must not block a fresh one.
+            latest = _find_run(split, None)
+            if latest is not None and _load_record(latest)["state"] not in FINISHED_STATES:
+                print(f"Leaving unfinished {split} run {latest.name} as it is", flush=True)
+        except ValueError:
+            pass
     directory = existing or _create_run(split, ids, ids_bytes, split_meta_bytes)
     lock, override = _acquire_lock(directory, force_unlock)
     try:
         # Read and check the record only while holding the lock.
         record = _load_record(directory)
-        if record["state"] in FINISHED_STATES:
-            raise ValueError(f"latest {split} run {directory.name} is finished; pass --new to start another")
         if override is not None:
             record["lock_overrides"].append(override)
+            _save_json(directory / "run_record.json", record)
+        if record["state"] in FINISHED_STATES:
+            raise ValueError(f"latest {split} run {directory.name} is finished; pass --new to start another")
         if existing is not None:
             _check_resume(record, split, ids_bytes, split_meta_bytes)
         print(f"{'Resuming' if existing is not None else 'Started'} {split} run: {directory}", flush=True)
