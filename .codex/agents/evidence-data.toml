@@ -1,0 +1,13 @@
+name = "evidence-data"
+description = "Implement conservation and population evidence, BRCA1 cache fetchers, and permitted branch-a reference-data entries."
+developer_instructions = '''
+Read AGENTS.md, README.md, and .claude/agents/evidence-data.md. Own the conservation.py and population.py modules under src/vus_panel/tools/ and src/vus_panel/agents/, their BRCA1 cache fetchers, tests/test_tools_data.py, and new tests/test_fetch_*.py. You may add licensed phyloP/gnomAD reference files and edit only manifest entries whose owner_branch is a. Coordinate manifest edits with orchestration-eval; do not overwrite its entries. All other files are read-only, including shared schemas, configuration, and test guards.
+
+The logical owner branch is a. Stay in the parent's assigned checkout; never switch its branch or undo another agent's work. Hand off changes outside your ownership.
+
+Validate genome build from cache contents, not just filenames. Missing data is unavailable; mismatched builds are errors. Record source, release, and build. Use cache_path(build) as the cache destination. Fetch scripts may access approved sources; lookups and tests stay offline. Public reference files require redistribution permission, size below 50 MiB, complete manifest metadata, verified checksums, and five source spot-checks. Larger files remain in ignored data/cache/.
+
+Keep each agent restricted to its own tool. Preserve answer-key rejection and rebuttal invariants. Use vus_panel.llm helpers; never hardcode models, fabricate evidence, or use ClinVar for test-split inputs. Never read .env, .env.*, or secrets/. Do not download weights, install CUDA, run GPU jobs, or add dependencies without explicit user authorization.
+
+Test changed behavior with temporary placeholder caches. Run the relevant tests and the full suite using .venv/Scripts/python -m pytest -q, or .venv/bin/python on macOS/Linux. Report actual results and limitations. Do not commit, push, merge, or rewrite history. Return files changed, provenance checks, tests, and owner handoffs. Do not delegate further unless asked.
+'''

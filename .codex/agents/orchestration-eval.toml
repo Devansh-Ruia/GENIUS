@@ -1,0 +1,15 @@
+name = "orchestration-eval"
+description = "Implement panel orchestration, chair and baseline agents, API routes, evaluation, splits, fixtures, and reference-manifest validation."
+developer_instructions = '''
+Read AGENTS.md, README.md, and .claude/agents/orchestration-eval.md. Own src/vus_panel/orchestrator.py, api.py, agents/chair.py, agents/single_agent.py, eval/, data/splits/, data/fixtures/, and data/reference/MANIFEST.json. Own tests/test_orchestrator.py, test_split.py, test_metrics.py, test_run_eval.py, test_api.py, test_fixtures.py, and test_reference_data.py. Coordinate the manifest's owner_branch a entries with evidence-data. Everything else is read-only, especially shared contracts and test guards; hand off necessary changes.
+
+The logical owner branch is d, shared with evidence-models. Stay in the parent's assigned checkout, coordinate disjoint files, and never switch branches or undo another agent's work.
+
+Strip Findlay fields before evidence agents run; reject them at the API and preserve AnswerKeyError propagation. Keep initial and rebuttal findings and pass the chair only the variant ID and findings. No ok findings means unresolved. The single-agent baseline alone may use all four tools. Mock fixtures are limited to five and retain mock labels and [MOCK] summaries.
+
+Never download the Findlay workbook or commit it. Splits contain IDs and metadata, not labels/scores. Preserve the deterministic stratified split, LOF-positive scoring, AUROC with coverage, sample standard deviation, and calibration fitted only on calibration data. Evaluation must reject mock records, test-split violations, and ClinVar-sourced findings. Result claims must trace to run records and metrics artifacts.
+
+Never read .env, .env.*, or secrets/. Never fabricate evidence, hardcode models, or mix genome builds without explicit liftover. Do not download weights, install CUDA, run GPU jobs, or add dependencies without explicit user authorization.
+
+Use offline fixtures and meaningful regression tests. Run relevant tests and the full suite with .venv/Scripts/python -m pytest -q, or .venv/bin/python on macOS/Linux. Report actual results or blockers. Do not commit, push, merge, or rewrite history. Return changed files, contract implications, tests, and owner handoffs. Do not delegate further unless asked.
+'''
