@@ -23,6 +23,9 @@ EVIDENCE_AGENTS: tuple[str, ...] = ("evo2", "sae", "conservation", "population")
 ANSWER_KEY_FIELDS: tuple[str, ...] = ("findlay_function_class", "findlay_score")
 
 _BASE_RE = re.compile(r"^[ACGT]$")
+# The same patterns as eval/run_eval.py's ClinVar refusal; tests check they agree.
+_CLINVAR_RE = re.compile(r"clinvar|\b(?:VCV|RCV|SCV)\d{6,}", re.IGNORECASE)
+_CLINVAR_VCF_TAG_RE = re.compile(r"\bCLN[A-Z]+\b")
 _CHROM_RE = re.compile(r"^(?:[1-9]|1[0-9]|2[0-2]|X|Y|MT)$")
 _VARIANT_ID_RE = re.compile(r"^(GRCh37|GRCh38)-([0-9XYMT]+)-([0-9]+)-([ACGT])-([ACGT])$")
 
@@ -98,6 +101,11 @@ def reject_answer_key(variant: Variant, receiver: str) -> None:
         )
 
 
+def mentions_clinvar(text: str) -> bool:
+    """True if text names ClinVar, a ClinVar accession or a ClinVar VCF tag."""
+    return bool(_CLINVAR_RE.search(text) or _CLINVAR_VCF_TAG_RE.search(text))
+
+
 def parse_variant_id(variant_id: str) -> Variant:
     """Reverse Variant.variant_id. Raises ValueError on a malformed ID."""
     match = _VARIANT_ID_RE.match(variant_id)
@@ -129,6 +137,8 @@ class AgentFinding(_Contract):
     raw_values: dict[str, Any] = Field(default_factory=dict)
     rationale: str = Field(min_length=1)
     sources: list[str] = Field(default_factory=list)
+    # Set only with a verdict: the evidence that would change it.
+    what_would_change_my_mind: str | None = Field(default=None, min_length=1)
     # Set only by the rebuttal round, when the agent revises its verdict.
     revision_reason: str | None = None
 
@@ -139,8 +149,13 @@ class AgentFinding(_Contract):
                 raise ValueError("verdict must be null unless status is 'ok'")
             if self.raw_values:
                 raise ValueError("raw_values must be empty unless status is 'ok'")
+            if self.what_would_change_my_mind is not None:
+                raise ValueError("what_would_change_my_mind must be null unless status is 'ok'")
         elif self.verdict is None:
             raise ValueError("a finding with status 'ok' needs a verdict ('uncertain' is allowed)")
+        # run_eval's ClinVar refusal does not scan this field, so it may never carry a ClinVar mention.
+        if self.what_would_change_my_mind is not None and mentions_clinvar(self.what_would_change_my_mind):
+            raise ValueError("what_would_change_my_mind must not mention ClinVar, which is not an input here")
         return self
 
 

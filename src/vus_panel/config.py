@@ -51,6 +51,11 @@ def evo2_backend_url() -> str | None:
     return get_env("EVO2_BACKEND_URL")
 
 
+def evo2_scores_dir() -> str | None:
+    """A run directory, or a folder of runs, holding stored Evo 2 outcomes."""
+    return get_env("EVO2_SCORES_DIR")
+
+
 def display_path(path: Path) -> str:
     """Show a path relative to the repo when possible, so messages don't leak home directories."""
     try:
