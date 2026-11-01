@@ -45,9 +45,12 @@ def test_page_gates_verdicts_and_marks_invalid_ones():
     page = client.get("/").text
     assert re.search(r'const VERDICTS = new Set\(\["damaging", "tolerated", "uncertain"\]\);', page)
     assert "invalid verdict" in page
-    # pairState and the matrix diagonal both check the set before showing a verdict.
+    # pairState and the matrix diagonal both check before showing a verdict:
+    # pairState against the set, the diagonal through the label map, which only
+    # holds the three valid verdicts.
     assert re.search(r"function pairState\([^)]*\)\s*\{\s*if \(!VERDICTS\.has\(first\) \|\| !VERDICTS\.has\(second\)\)", page)
-    assert re.search(r'VERDICTS\.has\(a\.verdict\) \? a\.verdict : "invalid verdict"', page)
+    assert re.search(r'VERDICT_LABEL\[a\.verdict\] \|\| "invalid verdict"', page)
+    assert re.search(r"const VERDICT_LABEL = \{\s*damaging:[^}]*tolerated:[^}]*uncertain:[^}]*\}", page, re.S)
 
 
 def test_mock_banner_starts_hidden_and_follows_is_mock():
@@ -55,7 +58,7 @@ def test_mock_banner_starts_hidden_and_follows_is_mock():
     tag = re.search(r'<div[^>]*\bid="mock-banner"[^>]*>', page)
     assert tag is not None
     assert re.search(r"\shidden(?=[\s>])", tag.group(0))
-    assert "MOCK DATA" in page
+    assert "Sample data" in page
     # The banner shows whenever any loaded record is mock ...
     assert re.search(r'getElementById\("mock-banner"\)\.hidden\s*=\s*!state\.reports\.some\(isMock\)', page)
     # ... and a record counts as mock unless it says mock: false, so a missing flag shows the banner.
@@ -100,6 +103,7 @@ def test_fixtures_endpoint_returns_mock_reports():
     assert response.status_code == 200
     reports = response.json()
     assert 1 <= len(reports) <= 5
+    assert all(r["mock"] is True for r in reports)
     assert all(r["mock"] is True for r in reports)
 
 
