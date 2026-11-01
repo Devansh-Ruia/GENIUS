@@ -407,6 +407,7 @@
 // textContent or setAttribute. Nothing here parses report data as HTML.
 
 const AGENTS = ["evo2", "sae", "conservation", "population"];
+const ROW_LABEL = { sae: "sae (planned, not in this build)" };
 const CALLS = new Set(["likely_damaging", "likely_tolerated", "unresolved"]);
 const VERDICTS = new Set(["damaging", "tolerated", "uncertain"]);
 
@@ -856,7 +857,7 @@ function renderMatrix() {
 
   for (const rowAgent of AGENTS) {
     const row = el("tr");
-    row.append(el("th", { scope: "row" }, rowAgent));
+    row.append(el("th", { scope: "row" }, ROW_LABEL[rowAgent] || rowAgent));
     for (const colAgent of AGENTS) {
       const a = findings.get(rowAgent);
       const b = findings.get(colAgent);
@@ -1225,6 +1226,18 @@ for (const radio of document.querySelectorAll('input[name="stage"]')) {
 initTheme();
 buildStaticCopy();
 render();
+
+// Open on the saved real reviews in data/demo/, loaded the same way as fixtures.
+(async () => {
+  try {
+    const response = await fetch("/demo");
+    if (!response.ok) throw new Error(`server returned ${response.status}`);
+    const list = await response.json();
+    if (Array.isArray(list) && list.length) setReports(list, "saved demo reviews");
+  } catch (error) {
+    setStatus(`Could not load the saved demo reviews: ${error.message}`, true);
+  }
+})();
 </script>
 </body>
 </html>

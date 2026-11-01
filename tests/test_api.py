@@ -104,3 +104,48 @@ def test_fixtures_endpoint_returns_mock_reports():
     reports = response.json()
     assert 1 <= len(reports) <= 5
     assert all(r["mock"] is True for r in reports)
+    assert all(r["mock"] is True for r in reports)
+
+
+# GET /demo: saved real reviews the page opens with
+
+def _write_demo(path, reports):
+    import json
+    path.write_text(json.dumps([r.model_dump(mode="json") for r in reports]), encoding="utf-8")
+    return path
+
+
+def test_demo_endpoint_is_empty_without_a_demo_file(tmp_path, monkeypatch):
+    from vus_panel import api
+    monkeypatch.setattr(api, "DEMO_PATH", tmp_path / "missing.json")
+    response = client.get("/demo")
+    assert response.status_code == 200 and response.json() == []
+
+
+def test_demo_endpoint_returns_saved_real_reports(tmp_path, monkeypatch):
+    from _factories import report
+    from vus_panel import api
+    monkeypatch.setattr(api, "DEMO_PATH", _write_demo(tmp_path / "demo.json", [report(mock=False)]))
+    reports = client.get("/demo").json()
+    assert len(reports) == 1 and reports[0]["mock"] is False
+
+
+def test_demo_loader_refuses_mock_reports(tmp_path):
+    from _factories import report
+    from vus_panel import api
+    with pytest.raises(api.FixtureError, match="mock: false"):
+        api.load_demo(_write_demo(tmp_path / "demo.json", [report(mock=True)]))
+
+
+def test_committed_demo_reports_are_real_and_valid():
+    from vus_panel import api
+    if not api.DEMO_PATH.is_file():
+        pytest.skip("no data/demo/panel_reports.json committed")
+    reports = api.load_demo(api.DEMO_PATH)
+    assert reports and all(r.mock is False for r in reports)
+
+
+def test_page_opens_on_the_demo_reviews_and_labels_sae_as_planned():
+    page = client.get("/").text
+    assert 'fetch("/demo")' in page
+    assert "sae (planned, not in this build)" in page

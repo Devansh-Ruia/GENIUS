@@ -68,7 +68,7 @@ Serve the API and the page:
 
 Open http://127.0.0.1:8000. "Load fixtures" shows the five mock reports under a MOCK DATA banner. The review form posts a variant to `POST /review`, which returns `call: "unresolved"` with four unavailable findings until the agents are implemented.
 
-Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. The app does not read `.env` itself, so export the values in your shell, for example `set -a; source .env; set +a` in bash.
+Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. `.venv/Scripts/python -m vus_panel.serve` (or `.venv/bin/python`) loads `.env` and starts the server on :8000. A value already set in your shell wins, and only variable names are printed. Plain `uvicorn` does not read `.env`. The page opens on the saved real reviews in `data/demo/`.
 
 | Variable | Used for |
 | --- | --- |
@@ -145,7 +145,7 @@ Tools return a `ToolResult` with the same rule: no values unless status is `"ok"
 
 | Branch | Owner | Workstream | Subagent |
 | --- | --- | --- | --- |
-| d | Devansh | Evo 2/SAE scoring service, Findlay loader and splits, orchestrator, `chair.py`, `api.py`, single-agent baseline, Evo 2-alone baseline, eval | evidence-models, orchestration-eval |
+| d | Devansh | Evo 2/SAE scoring service, Findlay loader and splits, orchestrator, `chair.py`, `api.py`, single-agent baseline, Evo 2-alone and logistic baselines, eval | evidence-models, orchestration-eval |
 | a | Teammate A | phyloP and gnomAD caches for the BRCA1 region in GRCh37, with a five-position hand spot-check | evidence-data |
 | k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script, a source for the "one in five" claim | demo-pitch (owns `docs/demo/`, no code) |
 | m | Teammate M | Output screen against fixtures, report card renamed for tumor boards, second-hit input field | frontend (owns `web/` only) |
@@ -167,7 +167,7 @@ Change these only in a PR that every affected owner has reviewed.
 
 - **Answer key**: the saturation genome editing scores for 3,893 BRCA1 SNVs from Findlay et al. 2018 (Nature 562(7726):217-222, doi:10.1038/s41586-018-0461-z), as used in [NVIDIA's Evo 2 zero-shot BRCA1 notebook](https://docs.nvidia.com/bionemo-framework/2.5/user-guide/examples/bionemo-evo2/zeroshot_brca1/). Following that notebook, LOF is the positive class and FUNC plus INT are negative. Positions are hg19, so GRCh37.
 - **Split**: `eval/split.py` assigns variant IDs to calibration and test with seed 0, stratified by function class. The calibration fraction defaults to 0.2 and is a CLI flag. Only ID lists and a metadata file (seed, counts, the source file's sha256) are committed to `data/splits/`.
-- **Systems compared on the test split**: the panel, the single-agent baseline, and Evo 2 alone (the zero-shot delta, scored as minus delta as in the notebook).
+- **Systems compared on the test split**: the panel, the single-agent baseline, Evo 2 alone (the zero-shot delta, scored as minus delta as in the notebook, `eval/evo2_alone.py`), and a logistic regression on the Evo 2 delta, phyloP and gnomAD presence and frequency, fit on the calibration split only (`eval/logistic_baseline.py`).
 - **Discrimination**: AUROC on resolved variants, always reported together with coverage, the fraction not unresolved. A system can't look better by abstaining without that showing up in coverage.
 - **Calibration check**: reliability bins and expected calibration error on the test split. Any calibration is fit on the calibration split only, and a report sets `calibrated: true` only after that.
 - **Spread**: any standard deviation, for example across seeds, uses ddof=1.

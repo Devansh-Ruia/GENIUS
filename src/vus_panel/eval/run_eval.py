@@ -38,7 +38,7 @@ from vus_panel.eval.metrics import reliability_bins, selective_auroc
 from vus_panel.eval.split import default_findlay_path, load_findlay, read_ids, sha256_file
 from vus_panel.schemas import PanelReport, RunRecord
 
-SYSTEMS = ("panel", "single_agent", "evo2_alone")
+SYSTEMS = ("panel", "single_agent", "evo2_alone", "logistic_baseline")
 LABEL_RULE = "LOF positive; FUNC and INT negative"
 CLINVAR_RE = re.compile(r"clinvar|\b(?:VCV|RCV|SCV)\d{6,}", re.IGNORECASE)
 CLINVAR_VCF_TAG_RE = re.compile(r"\bCLN[A-Z]+\b")  # VCF INFO tags are uppercase, so this one is case-sensitive

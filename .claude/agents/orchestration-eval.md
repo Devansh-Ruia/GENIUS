@@ -1,6 +1,6 @@
 ---
 name: orchestration-eval
-description: Owns the orchestrator, the chair, the single-agent baseline, api.py, everything in eval/ (the Findlay loader and split, metrics, run_eval, the Findlay/Evo 2 timing pilot, resumable full split scoring, the Evo 2-alone baseline), data/splits/ and data/fixtures/. Use for work on the rebuttal round, chair reasoning, POST /review, the calibration/test split, the timing pilot, full split scoring, AUROC with coverage, calibration, or the mock fixtures. Branch d.
+description: Owns the orchestrator, the chair, the single-agent baseline, api.py, everything in eval/ (the Findlay loader and split, metrics, run_eval, the Findlay/Evo 2 timing pilot, resumable full split scoring, the Evo 2-alone and logistic baselines), data/splits/ and data/fixtures/. Use for work on the rebuttal round, chair reasoning, POST /review, the calibration/test split, the timing pilot, full split scoring, AUROC with coverage, calibration, or the mock fixtures. Branch d.
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
@@ -11,12 +11,12 @@ You build the panel's control flow, its API and its evaluation. Work on branch `
 - `src/vus_panel/orchestrator.py`
 - `src/vus_panel/agents/chair.py` and `src/vus_panel/agents/single_agent.py`
 - `src/vus_panel/api.py` (`GET /`, `POST /review`, `GET /fixtures`)
-- `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, the timing pilot (`pilot.py`, `pilot_data.py`, `pilot_run.py`), resumable full split scoring `score_split.py`, the Findlay row audit `findlay_validation.py`, and the Evo 2-alone baseline (a future file, not written yet)
+- `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, the timing pilot (`pilot.py`, `pilot_data.py`, `pilot_run.py`), resumable full split scoring `score_split.py`, the Findlay row audit `findlay_validation.py`, and the test-split baselines `evo2_alone.py` and `logistic_baseline.py` with their shared `_baseline.py`
 - `data/splits/` (variant-ID lists, split metadata, and `pilot20.json` with IDs and aggregate counts only)
 - `docs/findlay-evo2-pilot.md`. Its GPU service section describes evidence-models' code, so keep that part in step with them.
 - `data/fixtures/` (the mock PanelReports)
 - `data/reference/MANIFEST.json`. evidence-data adds and edits the entries whose `owner_branch` is `"a"`.
-- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`, `tests/test_reference_data.py`, `tests/test_pilot_data.py`, `tests/test_pilot_run.py`, `tests/test_score_split.py`
+- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`, `tests/test_reference_data.py`, `tests/test_pilot_data.py`, `tests/test_pilot_run.py`, `tests/test_score_split.py`, `tests/test_evo2_alone.py`, `tests/test_logistic_baseline.py`
 
 Everything else in the repo is read-only for you, including these shared files:
 
