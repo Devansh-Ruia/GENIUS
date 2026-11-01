@@ -1,160 +1,502 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VUS panel</title>
+<title>GENIUS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap" rel="stylesheet">
 <style>
+  /* The four DNA bases are the palette. Verdicts borrow from them: harmless
+     takes adenine's green, broken thymine's red, not decisive guanine's amber.
+     Nothing is colour alone; every marker and cell is also labelled. */
+  :root, [data-theme="light"] {
+    --paper: #F6F2E9;
+    --raised: #FFFDF8;
+    --ink: #14171B;
+    --ink-soft: #55554E;
+    --rule: #E0D9C8;
+    --rule-soft: #EDE8DB;
+    --field: #FFFDF8;
+    --base-a: #2F7D55;
+    --base-c: #2A5FA0;
+    --base-g: #A8750F;
+    --base-t: #B5392E;
+    --agree: #E6EFE7;
+    --disagree: #F6E7E3;
+    --uncertain: #F6EEDB;
+    --na: #ECE7DA;
+    --shadow: 0 1px 2px rgba(30, 34, 39, 0.06);
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --paper: #23272C;
+    --raised: #2A2F35;
+    --ink: #EDEFEC;
+    --ink-soft: #B3BBC2;
+    --rule: #363B42;
+    --rule-soft: #2E333A;
+    --field: #2A2F35;
+    --base-a: #6DB98C;
+    --base-c: #7FA6D8;
+    --base-g: #CFA85C;
+    --base-t: #D9847A;
+    --agree: #2B3630;
+    --disagree: #3A2E2C;
+    --uncertain: #373227;
+    --na: #2C3137;
+    --shadow: none;
+    color-scheme: dark;
+  }
   :root {
-    --bg: #ffffff;
-    --fg: #1b1f24;
-    --muted: #5b6470;
-    --line: #d5dae0;
-    --panel: #f5f7f9;
-    --very-high: #0b3d91;
-    --high: #6fa8dc;
-    --low: #f1c232;
-    --unresolved: #e69138;
-    --agree: #d9ead3;
-    --disagree: #f4cccc;
-    --na: #eeeeee;
-    --uncertain: #fff2cc;
-    --mock-bg: #b00020;
-    --mock-fg: #ffffff;
+    --unanimous: var(--base-a);
+    --mixed: var(--base-g);
+    --conflict: var(--base-t);
+    --no-evidence: #9A978C;
+    --mock-bg: var(--base-t);
+    --mock-fg: #FFFFFF;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  header, main { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
-  header { padding-top: 16px; }
-  h1 { margin: 0 0 4px; font-size: 1.5rem; }
-  h2 { font-size: 1.15rem; margin: 0 0 8px; }
-  h3 { font-size: 1rem; margin: 0 0 8px; overflow-wrap: anywhere; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 16px 0; }
-  .muted, .note { color: var(--muted); }
-  .note { font-size: 0.9rem; margin: 0 0 8px; }
-  .mock-banner { position: sticky; top: 0; z-index: 10; background: var(--mock-bg); color: var(--mock-fg); text-align: center; font-weight: 700; padding: 10px 16px; letter-spacing: 0.02em; }
-  .mock-banner[hidden] { display: none; }
-  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-  .controls form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
-  .controls label { display: flex; flex-direction: column; font-size: 0.85rem; color: var(--muted); }
-  input, select, button { font: inherit; padding: 4px 8px; }
-  input[type="number"] { width: 9em; }
-  #chrom { width: 5em; }
-  button { cursor: pointer; }
-  #status { flex-basis: 100%; margin: 0; min-height: 1.4em; }
-  #status.error { color: var(--mock-bg); }
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; margin-bottom: 8px; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .track-wrap { margin-bottom: 10px; }
-  .track { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
-  .axis { stroke: var(--muted); stroke-width: 1.5; }
-  .tick { fill: var(--muted); font-size: 12px; }
-  .pt { stroke-width: 2; cursor: pointer; }
-  .pt.very-high { fill: var(--very-high); stroke: var(--very-high); }
-  .pt.high { fill: var(--high); stroke: var(--high); }
-  .pt.low { fill: var(--low); stroke: var(--low); }
-  .pt.unresolved { fill: var(--unresolved); stroke: var(--unresolved); }
-  .pt.hollow { fill: var(--bg); stroke-width: 3; }
-  .sel-ring { fill: none; stroke: var(--fg); stroke-width: 2; stroke-dasharray: 3 2; pointer-events: none; }
-  .pt:focus { outline: none; stroke-width: 5; }
-  .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  header, main, footer { max-width: 64rem; margin: 0 auto; padding: 0 2rem; }
+  @media (max-width: 40rem) { header, main, footer { padding: 0 1.1rem; } }
+
+  h1 { margin: 0 0 0.15rem; font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+  h2 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.015em; }
+  h3 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+  h4 { margin: 1.5rem 0 0.4rem; font-size: 0.9375rem; font-weight: 600; color: var(--ink-soft); }
+  p { margin: 0 0 1rem; }
+  .muted { color: var(--ink-soft); }
+  .note { color: var(--ink-soft); font-size: 0.9375rem; margin: 0 0 1.1rem; max-width: 64ch; }
+
+  header { padding-top: 2.75rem; padding-bottom: 0.25rem; }
+  .masthead { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; }
+  .bases { display: flex; gap: 3px; margin-bottom: 1.1rem; }
+  .bases i { display: block; width: 2.25rem; height: 5px; border-radius: 1px; }
+  .expansion { margin: 0 0 0.5rem; font-size: 1.0625rem; letter-spacing: -0.005em; }
+  header p.muted { margin: 0; max-width: 48ch; font-size: 0.9375rem; }
+
+  .theme { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; background: var(--field); }
+  .theme button { border: none; background: none; color: var(--ink-soft); font-size: 0.8125rem; padding: 0.35rem 0.85rem; cursor: pointer; }
+  .theme button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+  section { padding: 2.5rem 0; border-top: 1px solid var(--rule); }
+  section[hidden] { display: none; }
+  #start { border-top: none; padding-top: 1.5rem; }
+
+  /* The page is a sequence, so the numbering is information rather than decoration. */
+  .step { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.7rem; }
+  .step .n {
+    flex: none; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    border: 1px solid var(--rule); color: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace; font-size: 0.8125rem;
+    display: grid; place-items: center;
+  }
+
+  .term { border-bottom: 1px dotted var(--ink-soft); cursor: help; position: relative; }
+  .term:focus { outline: 2px solid var(--base-c); outline-offset: 2px; border-radius: 2px; }
+  .term .tip {
+    position: absolute; left: 0; bottom: calc(100% + 0.45rem); z-index: 20;
+    width: max-content; max-width: 22rem;
+    background: var(--ink); color: var(--paper);
+    font-size: 0.8125rem; line-height: 1.45; font-weight: 400;
+    padding: 0.5rem 0.7rem; border-radius: 4px;
+    opacity: 0; visibility: hidden; transition: opacity 0.12s ease;
+    pointer-events: none; white-space: normal; text-align: left; border-bottom: none;
+  }
+  .term:hover .tip, .term:focus .tip, .term:focus-within .tip { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .term .tip { transition: none; } }
+
+  .panel { background: var(--raised); border: 1px solid var(--rule); border-radius: 6px; padding: 1.25rem 1.4rem; box-shadow: var(--shadow); }
+  form { display: flex; flex-wrap: wrap; gap: 0.9rem 1.1rem; align-items: flex-end; }
+  label.field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8125rem; color: var(--ink-soft); }
+  input, select, button { font: inherit; font-size: 0.9375rem; padding: 0.45rem 0.6rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); color: var(--ink); }
+  #pos { width: 9.5rem; font-family: "IBM Plex Mono", monospace; }
+  #chrom { width: 4.5rem; font-family: "IBM Plex Mono", monospace; }
+  select, button { cursor: pointer; }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 500; padding-inline: 1.1rem; }
+  button.primary:hover { opacity: 0.88; }
+  button.quiet { border-color: var(--rule); color: var(--ink-soft); font-size: 0.875rem; }
+  button.quiet:hover { border-color: var(--ink-soft); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--base-c); outline-offset: 2px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 1.1rem; font-size: 0.875rem; color: var(--ink-soft); }
+  .secondary-actions { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end; margin-top: 1.25rem; font-size: 0.875rem; color: var(--ink-soft); }
+  input[type="file"] { border: none; padding-left: 0; background: none; font-size: 0.8125rem; }
+  #status { margin: 1rem 0 0; min-height: 1.4em; font-size: 0.9375rem; color: var(--ink-soft); }
+  #status.error { color: var(--base-t); }
+  #status.working::after { content: ""; display: inline-block; width: 0.5rem; height: 0.5rem; margin-left: 0.45rem; border-radius: 50%; background: var(--base-c); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { #status.working::after { animation: none; opacity: 0.6; } }
+
+  .verdict { border-left: 4px solid var(--rule); padding: 1.1rem 1.4rem; background: var(--raised); border-radius: 0 6px 6px 0; }
+  .verdict.likely_damaging { border-left-color: var(--base-t); }
+  .verdict.likely_tolerated { border-left-color: var(--base-a); }
+  .verdict.unresolved { border-left-color: var(--base-g); }
+  .verdict .vid { font-family: "IBM Plex Mono", monospace; font-size: 0.875rem; color: var(--ink-soft); margin: 0 0 0.3rem; }
+  .verdict .call { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.35rem; line-height: 1.2; }
+  .verdict .meaning { margin: 0; max-width: 62ch; }
+  .verdict .body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
+  .verdict .body > div:first-child { flex: 1 1 24rem; min-width: 0; }
+  .verdict .meta {
+    flex: 0 0 auto; display: flex; flex-direction: column; gap: 0.5rem;
+    font-size: 0.875rem; color: var(--ink-soft);
+    padding-left: 1.5rem; border-left: 1px solid var(--rule-soft);
+  }
+  @media (max-width: 48rem) {
+    .verdict .meta { padding-left: 0; border-left: none; border-top: 1px solid var(--rule-soft); padding-top: 0.8rem; width: 100%; }
+  }
+
+  /* Long reasoning reads better as one point per sentence. */
+  ul.points { margin: 0; padding-left: 1.05rem; }
+  ul.points li { margin-bottom: 0.4rem; }
+  ul.points li:last-child { margin-bottom: 0; }
+  .agent-card ul.points { font-size: 0.875rem; color: var(--ink-soft); }
+  .card ul.points { max-width: 66ch; margin-bottom: 1rem; }
+
+  /* Two by two. Four across would leave each agent about 14rem wide, which is
+     too narrow for the reasoning points. Cards size to their own content, so a
+     card with no evidence does not inherit the tallest card's height. */
+  .evidence { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; align-items: start; }
+  @media (max-width: 44rem) { .evidence { grid-template-columns: minmax(0, 1fr); } }
+  .agent-card { background: var(--raised); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+  .agent-card.is-damaging { border-top: 3px solid var(--base-t); }
+  .agent-card.is-tolerated { border-top: 3px solid var(--base-a); }
+  .agent-card.is-uncertain { border-top: 3px solid var(--base-g); }
+  .agent-card.is-none { border-top: 3px solid var(--no-evidence); }
+  .agent-card h3 { margin-bottom: 0.15rem; font-size: 0.9375rem; }
+  .agent-card .asks { font-size: 0.8125rem; color: var(--ink-soft); margin: 0 0 0.9rem; }
+  .agent-card .value { font-family: "IBM Plex Mono", monospace; font-size: 1.2rem; margin: 0 0 0.1rem; }
+  .agent-card .value-label { font-size: 0.8125rem; color: var(--ink-soft); margin: 0 0 0.9rem; }
+  .agent-card .said { font-size: 0.9375rem; font-weight: 500; margin: 0 0 0.5rem; }
+  .agent-card .said.is-damaging { color: var(--base-t); }
+  .agent-card .said.is-tolerated { color: var(--base-a); }
+  .agent-card .said.is-uncertain { color: var(--base-g); }
+  .agent-card .said.is-none { color: var(--ink-soft); }
+  .agent-card .why { font-size: 0.875rem; color: var(--ink-soft); margin: 0; }
+  .agent-card .revision { font-size: 0.8125rem; margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--rule-soft); color: var(--base-g); }
+
+  .stage-toggle { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1rem; font-size: 0.9375rem; }
+  .stage-toggle label { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
   .table-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; background: var(--bg); }
-  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; font-size: 0.9rem; }
-  .matrix td { text-align: center; min-width: 7em; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
+  th, td { padding: 0.6rem 0.9rem 0.6rem 0; border-bottom: 1px solid var(--rule-soft); text-align: left; vertical-align: top; }
+  thead th { border-bottom: 1px solid var(--rule); font-weight: 500; font-size: 0.8125rem; color: var(--ink-soft); }
+  td.raw { font-family: "IBM Plex Mono", monospace; font-size: 0.8125rem; color: var(--ink-soft); max-width: 20rem; }
+  .matrix { border-collapse: separate; border-spacing: 2px; width: auto; }
+  .matrix th { padding: 0.4rem 0.6rem; border: none; }
+  .matrix td { text-align: center; min-width: 9rem; padding: 0.6rem; border: none; border-radius: 3px; font-size: 0.8125rem; background: var(--raised); }
   .matrix .agree { background: var(--agree); }
   .matrix .conflict { background: var(--disagree); }
-  .matrix .uncertain { background: var(--uncertain); font-style: italic; }
-  .matrix .na { background: var(--na); color: var(--muted); }
-  .matrix .self { font-weight: 600; }
-  .matrix .revised { outline: 2px dashed var(--unresolved); outline-offset: -4px; }
-  .stage-toggle { display: flex; gap: 12px; margin-bottom: 8px; font-size: 0.9rem; }
-  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 12px; }
-  dl.facts dt { color: var(--muted); }
-  dl.facts dd { margin: 0; overflow-wrap: anywhere; }
-  .mock-tag { display: inline-block; background: var(--mock-bg); color: var(--mock-fg); font-weight: 700; padding: 2px 8px; border-radius: 4px; margin: 0 0 8px; }
-  blockquote { margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--high); background: var(--bg); }
-  .card p { margin: 0 0 12px; }
-  .card h4 { margin: 12px 0 4px; font-size: 0.95rem; }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #15181c; --fg: #e8eaed; --muted: #a0a8b3; --line: #343a42; --panel: #1d2126;
-      --very-high: #3d7bff; --high: #8cc2f2; --agree: #29402a; --disagree: #4a2626; --na: #2a2e33; --uncertain: #3d3520;
+  .matrix .uncertain { background: var(--uncertain); }
+  .matrix .na { background: var(--na); color: var(--ink-soft); }
+  .matrix .self { font-weight: 500; }
+  .matrix .revised { box-shadow: inset 0 0 0 1.5px var(--base-g); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; font-size: 0.875rem; color: var(--ink-soft); margin-bottom: 1.1rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .swatch { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 2px solid transparent; }
+  .track-wrap { margin-bottom: 1.25rem; }
+  .track-wrap h3 { font-family: "IBM Plex Mono", monospace; font-size: 0.8125rem; font-weight: 500; color: var(--ink-soft); }
+  .track { width: 100%; height: auto; display: block; background: var(--raised); border: 1px solid var(--rule-soft); border-radius: 4px; }
+  .axis { stroke: var(--rule); stroke-width: 1; }
+  .tick { fill: var(--ink-soft); font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  .pt { stroke-width: 2; cursor: pointer; }
+  .pt.unanimous { fill: var(--unanimous); stroke: var(--unanimous); }
+  .pt.mixed { fill: var(--mixed); stroke: var(--mixed); }
+  .pt.conflict { fill: var(--conflict); stroke: var(--conflict); }
+  .pt.no-evidence { fill: var(--no-evidence); stroke: var(--no-evidence); }
+  .pt.hollow { fill: var(--raised); stroke-width: 2.5; }
+  .sel-ring { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 2 2; pointer-events: none; }
+  .pt:focus { outline: none; stroke-width: 5; }
+  #unplaced { color: var(--ink-soft); font-size: 0.875rem; padding-left: 1.1rem; }
+
+  .card p, .card ul { max-width: 66ch; }
+  .card ul { margin: 0 0 1rem; padding-left: 1.1rem; }
+  blockquote { margin: 0 0 1rem; padding: 0.9rem 1.2rem; border-left: 2px solid var(--base-c); background: var(--rule-soft); max-width: 66ch; border-radius: 0 4px 4px 0; }
+  blockquote p { margin: 0; }
+  details { border-top: 1px solid var(--rule-soft); padding-top: 0.9rem; margin-top: 1.5rem; }
+  summary { cursor: pointer; font-size: 0.9375rem; font-weight: 500; }
+
+  .mock-banner { position: sticky; top: 0; z-index: 30; background: var(--mock-bg); color: var(--mock-fg); text-align: center; font-weight: 500; font-size: 0.9375rem; padding: 0.65rem 1.5rem; }
+  .mock-banner[hidden] { display: none; }
+  .mock-tag { display: inline-block; background: var(--mock-bg); color: var(--mock-fg); font-size: 0.8125rem; font-weight: 500; padding: 0.15rem 0.6rem; border-radius: 3px; margin: 0 0 0.75rem; }
+
+  /* Ask panel */
+  .ask-form { display: flex; gap: 0.6rem; align-items: flex-start; flex-wrap: wrap; }
+  .ask-form input { flex: 1 1 22rem; }
+  .suggested { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.9rem; font-size: 0.875rem; color: var(--ink-soft); }
+  .thread { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
+  .turn { max-width: 70ch; }
+  .turn .asked { font-weight: 500; margin: 0 0 0.45rem; }
+  .turn .asked::before { content: "You asked"; display: block; font-size: 0.75rem; font-weight: 400; color: var(--ink-soft); margin-bottom: 0.15rem; }
+  .turn .answered { margin: 0; white-space: pre-wrap; padding-left: 0.9rem; border-left: 2px solid var(--base-c); }
+  .turn .answered.pending { color: var(--ink-soft); border-left-color: var(--rule); }
+  .turn .answered.failed { color: var(--base-t); border-left-color: var(--base-t); }
+
+  .report-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+  /* Print: one report on paper, for the counselor's file or the patient.
+     Everything that is a control, a navigation aid or another variant goes. */
+  @media print {
+    :root, [data-theme="dark"] {
+      --paper: #FFFFFF; --raised: #FFFFFF; --ink: #000000; --ink-soft: #444444;
+      --rule: #BBBBBB; --rule-soft: #DDDDDD; --shadow: none;
+      --agree: #F0F0F0; --disagree: #F0F0F0; --uncertain: #F0F0F0; --na: #F7F7F7;
     }
+    @page { margin: 18mm 16mm; }
+    body { font-size: 10.5pt; background: #FFFFFF; }
+    header, main, footer { max-width: none; padding: 0; }
+    #start, #track-section, #ask-section, .theme, .step .n, details summary,
+    .secondary-actions, #status, .print-button { display: none !important; }
+    section { border-top: none; padding: 0 0 1.1rem; break-inside: avoid; }
+    section[hidden] { display: none; }
+    .bases { margin-bottom: 0.6rem; }
+    h1 { font-size: 18pt; }
+    h2 { font-size: 12pt; }
+    .expansion { font-size: 10.5pt; }
+    header p.muted { display: none; }
+    .verdict { border-left-width: 3px; padding: 0.6rem 0.9rem; }
+    .verdict .call { font-size: 15pt; }
+    .evidence { grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: start; }
+    .agent-card { break-inside: avoid; padding: 0.6rem 0.75rem; box-shadow: none; }
+    .term { border-bottom: none; }
+    .term .tip { display: none; }
+    details { border-top: 1px solid #DDDDDD; }
+    details[open] summary { display: none; }
+    .matrix td { min-width: 0; font-size: 8.5pt; }
+    /* On screen the findings table scrolls sideways; on paper it must wrap,
+       or the first column and the measured values are cut off. */
+    .table-scroll { overflow: visible; }
+    table { table-layout: fixed; }
+    td.raw { font-size: 7.5pt; max-width: none; word-break: break-all; }
+    th, td { padding-right: 0.5rem; }
+    blockquote { break-inside: avoid; }
+    a[href]::after { content: ""; }
   }
+
+  .codes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.9rem; }
+  .code { display: inline-flex; align-items: baseline; gap: 0.4rem; border: 1px solid var(--rule); border-radius: 3px; padding: 0.2rem 0.55rem; font-size: 0.8125rem; background: var(--raised); }
+  .code b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+  .code.benign { border-color: var(--base-a); color: var(--base-a); }
+  .code.pathogenic { border-color: var(--base-t); color: var(--base-t); }
+  .code.none { color: var(--ink-soft); }
+  .sources-row { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8125rem; margin: 0.9rem 0 0; padding-top: 0.7rem; border-top: 1px solid var(--rule-soft); }
+  .sources-row a { color: var(--base-c); }
+
+  footer { padding: 2rem 0 3rem; border-top: 1px solid var(--rule); color: var(--ink-soft); font-size: 0.875rem; }
 </style>
 </head>
 <body>
-<div id="mock-banner" class="mock-banner" role="alert" hidden>MOCK DATA. At least one record on this page is mock and must not inform any decision.</div>
+<div id="mock-banner" class="mock-banner" role="alert" hidden>Sample data. At least one report on this page is a sample and must not inform any decision.</div>
+
 <header>
-  <h1>VUS panel</h1>
-  <p class="muted">BRCA1 variant review for genetic counselors and lab variant curators.</p>
-</header>
-<main>
-  <section class="controls" aria-label="Load reports">
-    <button id="load-fixtures" type="button">Load fixtures</button>
-    <label>Load JSON file
-      <input id="load-file" type="file" accept="application/json,.json">
-    </label>
-    <form id="review-form">
-      <label>Chrom <input id="chrom" name="chrom" value="17" required></label>
-      <label>Position <input id="pos" name="pos" type="number" min="1" step="1" required></label>
-      <label>Ref
-        <select id="ref" name="ref"><option>A</option><option>C</option><option>G</option><option>T</option></select>
-      </label>
-      <label>Alt
-        <select id="alt" name="alt"><option>A</option><option>C</option><option selected>G</option><option>T</option></select>
-      </label>
-      <label>Build
-        <select id="build" name="genome_build"><option>GRCh37</option><option>GRCh38</option></select>
-      </label>
-      <button type="submit">Review variant</button>
-    </form>
-    <p id="status" role="status"></p>
-  </section>
-
-  <section aria-labelledby="track-heading">
-    <h2 id="track-heading">Confidence track</h2>
-    <p class="note">Each genome build and chromosome gets its own track, so positions from different builds never share an axis. BRCA1 is on the minus strand, so the gene reads right to left here.</p>
-    <div id="legend" class="legend"></div>
-    <div id="tracks"><p class="muted">No reports loaded.</p></div>
-    <ul id="unplaced"></ul>
-  </section>
-
-  <section aria-labelledby="matrix-heading">
-    <h2 id="matrix-heading">Agent agreement</h2>
-    <div class="stage-toggle" role="radiogroup" aria-label="Findings stage">
-      <label><input type="radio" name="stage" value="initial"> Initial</label>
-      <label><input type="radio" name="stage" value="after" checked> After rebuttal</label>
+  <div class="bases" aria-hidden="true"><i style="background:var(--base-a)"></i><i style="background:var(--base-c)"></i><i style="background:var(--base-g)"></i><i style="background:var(--base-t)"></i></div>
+  <div class="masthead">
+    <div>
+      <h1>GENIUS</h1>
+      <p class="expansion">Genomic Evidence Network for Interpreting Uncertain Sequences</p>
+      <p class="muted">Four agents review one BRCA1 DNA change from four kinds of evidence, compare notes once, and a chair makes the call. Built for genetic counselors and lab variant curators.</p>
     </div>
-    <p class="note">Agree: the same firm verdict. Conflict: damaging against tolerated. One uncertain or both uncertain: at least one agent said uncertain. Not comparable: either agent has no result. The diagonal shows each agent's own verdict, with a dashed outline if it changed in rebuttal.</p>
+    <div class="theme" role="group" aria-label="Colour theme">
+      <button type="button" id="theme-light" aria-pressed="true">Light</button>
+      <button type="button" id="theme-dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="start">
+    <div class="step"><span class="n" aria-hidden="true">1</span><h2>Enter a DNA change to review</h2></div>
+    <p class="note" id="start-note"></p>
+    <div class="panel">
+      <form id="review-form">
+        <label class="field" id="label-chrom">Chromosome <input id="chrom" name="chrom" value="17" required></label>
+        <label class="field" id="label-pos">Position <input id="pos" name="pos" type="number" min="1" step="1" placeholder="41215920" required></label>
+        <label class="field" id="label-ref">Normal base
+          <select id="ref" name="ref"><option>A</option><option>C</option><option selected>G</option><option>T</option></select>
+        </label>
+        <label class="field" id="label-alt">Changed to
+          <select id="alt" name="alt"><option>A</option><option>C</option><option>G</option><option selected>T</option></select>
+        </label>
+        <label class="field" id="label-build">Genome build
+          <select id="build" name="genome_build"><option>GRCh37</option><option>GRCh38</option></select>
+        </label>
+        <button class="primary" type="submit">Review this variant</button>
+      </form>
+      <div class="examples" id="examples"></div>
+      <p id="status" role="status"></p>
+    </div>
+    <div class="secondary-actions">
+      <button type="button" class="quiet" id="load-fixtures">Load sample reports</button>
+      <label class="field">Or open a saved reports file
+        <input id="load-file" type="file" accept="application/json,.json">
+      </label>
+    </div>
+  </section>
+
+  <section id="result-section" hidden>
+    <div class="step"><span class="n" aria-hidden="true">2</span><h2>What the panel concluded</h2></div>
+    <div id="verdict"></div>
+  </section>
+
+  <section id="evidence-section" hidden>
+    <div class="step"><span class="n" aria-hidden="true">3</span><h2>Individual agent reports</h2></div>
+    <p class="note" id="evidence-note"></p>
+    <div id="evidence" class="evidence"></div>
+  </section>
+
+  <section id="agreement-section" hidden>
+    <div class="step"><span class="n" aria-hidden="true">4</span><h2>Where the agents lined up</h2></div>
+    <p class="note" id="matrix-note"></p>
+    <div class="stage-toggle" role="radiogroup" aria-label="Which round to show">
+      <label><input type="radio" name="stage" value="initial"> Before they compared notes</label>
+      <label><input type="radio" name="stage" value="after" checked> After they compared notes</label>
+    </div>
     <div id="matrix" class="table-scroll"></div>
   </section>
 
-  <section aria-labelledby="card-heading">
-    <h2 id="card-heading">Counselor report</h2>
+  <section id="report-section" hidden>
+    <div class="report-head">
+      <div class="step"><span class="n" aria-hidden="true">5</span><h2>The report</h2></div>
+      <button type="button" class="quiet print-button" id="print-report">Save as PDF or print</button>
+    </div>
+    <p class="note" id="print-note"></p>
     <div id="card" class="card"></div>
+  </section>
+
+  <section id="track-section" hidden>
+    <div class="step"><span class="n" aria-hidden="true">6</span><h2>Every variant you have reviewed</h2></div>
+    <p class="note" id="track-note"></p>
+    <div id="legend" class="legend"></div>
+    <div id="tracks"></div>
+    <ul id="unplaced"></ul>
+  </section>
+  <section id="ask-section">
+    <div class="step"><span class="n" aria-hidden="true">7</span><h2>Ask about any of this</h2></div>
+    <p class="note" id="ask-note"></p>
+    <div class="panel">
+      <form id="ask-form" class="ask-form">
+        <label class="field" style="flex:1 1 22rem">Your question
+          <input id="ask-input" type="text" autocomplete="off" placeholder="What does a conservation score of 6.4 actually mean?" required>
+        </label>
+        <button class="primary" type="submit" style="margin-top:1.1rem">Ask</button>
+      </form>
+      <div class="suggested" id="suggested"></div>
+    </div>
+    <div class="thread" id="thread"></div>
   </section>
 </main>
 
+<footer>
+  <p id="footer-note"></p>
+</footer>
+
 <script>
 "use strict";
-// Report content (including LLM text) is only ever set through textContent
-// or setAttribute. Nothing here parses report data as HTML.
+// Report content, including anything an LLM wrote, is only ever set through
+// textContent or setAttribute. Nothing here parses report data as HTML.
 
 const AGENTS = ["evo2", "sae", "conservation", "population"];
 const CALLS = new Set(["likely_damaging", "likely_tolerated", "unresolved"]);
 const VERDICTS = new Set(["damaging", "tolerated", "uncertain"]);
-const CALL_LABEL = { likely_damaging: "Likely damaging", likely_tolerated: "Likely tolerated", unresolved: "Unresolved" };
-const ID_RE = /^(GRCh37|GRCh38)-([0-9XYMT]+)-([0-9]+)-([ACGT])-([ACGT])$/;
-const SVG_NS = "http://www.w3.org/2000/svg";
+
+const CALL_LABEL = {
+  likely_damaging: "Most likely breaks the gene",
+  likely_tolerated: "Most likely harmless",
+  unresolved: "Not resolved, more evidence needed",
+};
+const CALL_MEANING = {
+  likely_damaging: "The evidence points to this change stopping BRCA1 from doing its job of repairing DNA.",
+  likely_tolerated: "The evidence points to BRCA1 still working normally with this change in place.",
+  unresolved: "The evidence is too thin or too divided to say either way. The report below names the test that would settle it.",
+};
+const VERDICT_LABEL = {
+  damaging: "Most likely breaks the gene (damaging)",
+  tolerated: "Most likely harmless (tolerated)",
+  uncertain: "Evidence not decisive (uncertain)",
+};
+const VERDICT_SHORT = { damaging: "breaks the gene", tolerated: "harmless", uncertain: "not decisive" };
+const STATUS_LABEL = {
+  ok: "Evidence returned",
+  unavailable: "Evidence not available",
+  error: "Could not be evaluated",
+};
+
+// What each agent is for, in the words of someone meeting it for the first time.
+const AGENT_INFO = {
+  evo2: {
+    title: "Sequence model",
+    asks: "Does this change make the DNA look unnatural to a model trained on genomes?",
+    valueKey: "delta",
+    valueLabel: "change in how likely the sequence looks",
+  },
+  sae: {
+    title: "Model features",
+    asks: "Which patterns inside that model react here, and does the change disturb them?",
+    valueKey: null,
+    valueLabel: "",
+  },
+  conservation: {
+    title: "Evolutionary conservation",
+    asks: "Has this exact letter stayed the same across species for millions of years?",
+    valueKey: "score",
+    valueLabel: "conservation score, higher means more preserved",
+  },
+  population: {
+    title: "Population frequency",
+    asks: "How many people not selected for disease carry this change?",
+    valueKey: "af",
+    valueLabel: "share of people carrying it",
+  },
+};
+
+const TIPS = {
+  variant: "A single letter of DNA changed at one position. GENIUS reviews one at a time.",
+  position: "Where along the chromosome the change sits. The number only means something together with the genome build.",
+  ref: "The letter normally found at this position in the human reference genome.",
+  alt: "The letter this person has instead.",
+  build: "Which version of the human reference genome the position is counted against. Numbering shifted between versions, so the same spot has different coordinates in GRCh37 and GRCh38. Use GRCh37 here: all the reference data is GRCh37.",
+  confidence: "A number the chair states for itself. It has not been checked against known outcomes, so read it as a judgement rather than a probability.",
+  driving: "The agents whose findings actually carried the call, rather than every agent that returned something.",
+  rebuttal: "After each agent reported on its own, each one saw the other three conclusions, never their underlying data, and could change its verdict once with a written reason.",
+  conservation: "Measured by phyloP across 100 vertebrate species. A position evolution never let change is more likely to matter.",
+  frequency: "From gnomAD, about 141,000 people. Common in people not selected for disease argues against serious harm. Being absent argues for very little, because most possible changes have never been seen in anyone.",
+  conflict: "Two agents reaching opposite firm verdicts. That is a reason to withhold a call, and it marks the variant as worth a lab assay.",
+};
+
 const BANDS = [
-  ["very-high", "Very high (0.9 and above)"],
-  ["high", "High (0.7 to below 0.9)"],
-  ["low", "Low (below 0.7, or no confidence)"],
-  ["unresolved", "Unresolved"],
+  ["unanimous", "Every agent with evidence agreed"],
+  ["mixed", "Mixed: at least one agent was not decisive"],
+  ["conflict", "Conflict: one says broken, another says harmless"],
+  ["no-evidence", "No agent returned evidence"],
 ];
 
+const EXAMPLES = [
+  { label: "A highly conserved position", chrom: "17", pos: 41215920, ref: "G", alt: "T" },
+  { label: "A change many people carry", chrom: "17", pos: 41243190, ref: "T", alt: "G" },
+  { label: "A position that varies freely", chrom: "17", pos: 41199642, ref: "T", alt: "G" },
+];
+
+const SUGGESTED = [
+  "What is this tool actually doing?",
+  "Where do the conservation and frequency numbers come from?",
+  "Why did two agents return nothing?",
+  "What does the confidence number mean?",
+  "Why did the panel not make a call?",
+];
+
+const ID_RE = /^(GRCh37|GRCh38)-([0-9XYMT]+)-([0-9]+)-([ACGT])-([ACGT])$/;
+const SVG_NS = "http://www.w3.org/2000/svg";
 const state = { reports: [], selected: null, stage: "after" };
 
 function el(tag, attrs, text) {
@@ -171,23 +513,26 @@ function svgEl(tag, attrs, text) {
   return node;
 }
 
-function setStatus(message, isError) {
+/** A term the reader can hover or focus to see what it means. */
+function term(text, tip) {
+  const node = el("span", { class: "term", tabindex: "0" }, text);
+  node.append(el("span", { class: "tip", role: "tooltip" }, tip));
+  return node;
+}
+
+/** Build a line from plain strings and term() nodes. */
+function line(parent, ...parts) {
+  for (const part of parts) parent.append(typeof part === "string" ? document.createTextNode(part) : part);
+  return parent;
+}
+
+function setStatus(message, kind) {
   const node = document.getElementById("status");
   node.textContent = message;
-  node.className = isError ? "error" : "";
+  node.className = kind || "";
 }
 
-function band(report) {
-  if (report.call === "unresolved") return "unresolved";
-  if (typeof report.confidence !== "number") return "low";
-  if (report.confidence >= 0.9) return "very-high";
-  if (report.confidence >= 0.7) return "high";
-  return "low";
-}
-
-function isMock(report) {
-  return report.mock !== false;
-}
+function isMock(report) { return report.mock !== false; }
 
 function isReportShape(report) {
   return Boolean(report) && typeof report === "object"
@@ -197,31 +542,410 @@ function isReportShape(report) {
     && Array.isArray(report.findings_after_rebuttal);
 }
 
+function current() { return state.selected === null ? null : state.reports[state.selected] || null; }
+function select(index) { state.selected = index; render(); }
+
 function setReports(list, sourceLabel) {
-  if (!Array.isArray(list)) throw new Error("expected a JSON array of PanelReports");
+  if (!Array.isArray(list)) throw new Error("expected a list of reports");
   const valid = list.filter(isReportShape);
   state.reports = valid;
   state.selected = valid.length ? 0 : null;
   render();
   const skipped = list.length - valid.length;
-  setStatus(`Loaded ${valid.length} report(s) from ${sourceLabel}${skipped ? `, skipped ${skipped} malformed` : ""}.`, false);
+  setStatus(`Loaded ${valid.length} report${valid.length === 1 ? "" : "s"} from ${sourceLabel}${skipped ? `, skipped ${skipped} that did not match the report format` : ""}.`);
 }
 
-function current() {
-  return state.selected === null ? null : state.reports[state.selected] || null;
+function okVerdicts(report) {
+  const list = Array.isArray(report.findings_after_rebuttal) ? report.findings_after_rebuttal : [];
+  return list.filter((f) => f && f.status === "ok" && VERDICTS.has(f.verdict)).map((f) => f.verdict);
 }
 
-function select(index) {
-  state.selected = index;
-  render();
+// Markers encode how far the agents agreed. Confidence is deliberately not
+// shown here: the chair states it, nothing has calibrated it, and banding an
+// uncalibrated number would read as a measurement.
+function band(report) {
+  const verdicts = okVerdicts(report);
+  if (!verdicts.length) return "no-evidence";
+  const firm = new Set(verdicts.filter((v) => v !== "uncertain"));
+  if (firm.has("damaging") && firm.has("tolerated")) return "conflict";
+  if (verdicts.includes("uncertain")) return "mixed";
+  return "unanimous";
+}
+
+function agreementText(report) {
+  const verdicts = okVerdicts(report);
+  const total = Array.isArray(report.findings_after_rebuttal) ? report.findings_after_rebuttal.length : 0;
+  if (!verdicts.length) return `no evidence from any of ${total} agents`;
+  const counts = new Map();
+  for (const v of verdicts) counts.set(v, (counts.get(v) || 0) + 1);
+  return `${verdicts.length} of ${total} agents returned evidence: ${[...counts].map(([v, n]) => `${n} ${VERDICT_SHORT[v]}`).join(", ")}`;
+}
+
+/* ACMG/AMP population criteria. These are frequency thresholds, so they are
+   computed here from the measured counts rather than asked of a model, and a
+   curator can check every one by hand.
+
+   Thresholds are the general ACMG 2015 / ClinGen SVI defaults. Expert panels
+   publish gene-specific values for BRCA1, and those take precedence; the page
+   says so rather than pretending these are BRCA1 specifications. Computational
+   criteria (PP3, BP4) are deliberately not emitted: ClinGen asks for calibrated
+   predictors, and neither phyloP nor an uncalibrated model qualifies. */
+const ACMG = {
+  BA1: { strength: "Stand-alone benign", basis: "allele frequency above 5% in a general population" },
+  BS1: { strength: "Strong benign", basis: "allele frequency above 1%, higher than the disorder could support" },
+  PM2_Supporting: { strength: "Supporting pathogenic", basis: "absent from population databases at this site" },
+};
+
+function acmgCodes(report) {
+  const population = findingsByAgent(report, "after").get("population");
+  if (!population || population.status !== "ok") return [];
+  const raw = population.raw_values || {};
+  if (raw.observation === "no_call") return [];
+  if (raw.observation === "not_observed") {
+    return [{ code: "PM2_Supporting", kind: "pathogenic", ...ACMG.PM2_Supporting,
+      measured: "not seen in gnomAD v2.1.1, and no coverage data was cached to confirm the site was well read" }];
+  }
+  if (typeof raw.af !== "number") return [];
+  const measured = `allele frequency ${raw.af.toExponential(2)} (${Number(raw.ac).toLocaleString("en-US")} of ${Number(raw.an).toLocaleString("en-US")} alleles)`;
+  if (raw.af > 0.05) return [{ code: "BA1", kind: "benign", ...ACMG.BA1, measured }];
+  if (raw.af > 0.01) return [{ code: "BS1", kind: "benign", ...ACMG.BS1, measured }];
+  return [];
+}
+
+/* Split prose into one point per sentence. The lookbehind keeps decimals and
+   version strings intact: a full stop only ends a sentence when it follows a
+   letter, a closing bracket or a percent sign, not a digit. So "0.449" and
+   "gnomAD v2.1.1" survive, while "...base rate. That points..." splits. */
+function sentences(text) {
+  return String(text || "")
+    .split(/(?<=[a-z\)\]%"])\.\s+(?=[A-Z(])/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part, index, all) => (index < all.length - 1 && !/[.!?]$/.test(part) ? `${part}.` : part));
+}
+
+/** A paragraph when short, a list of points when long enough to be worth scanning. */
+function prose(text, className) {
+  const parts = sentences(text);
+  if (parts.length < 3) return el("p", className ? { class: className } : {}, String(text || ""));
+  const list = el("ul", { class: className ? `points ${className}` : "points" });
+  for (const part of parts) list.append(el("li", {}, part));
+  return list;
+}
+
+function findingsByAgent(report, stage) {
+  const list = stage === "initial" ? report.findings_initial : report.findings_after_rebuttal;
+  const map = new Map();
+  for (const finding of list) {
+    if (finding && typeof finding.agent === "string") map.set(finding.agent, finding);
+  }
+  return map;
+}
+
+function wasRevised(report, agent) {
+  const before = findingsByAgent(report, "initial").get(agent);
+  const after = findingsByAgent(report, "after").get(agent);
+  return Boolean(before && after && before.status === "ok" && after.status === "ok" && before.verdict !== after.verdict);
 }
 
 function render() {
   document.getElementById("mock-banner").hidden = !state.reports.some(isMock);
-  renderLegend();
-  renderTracks();
+  const report = current();
+  for (const id of ["result-section", "evidence-section", "agreement-section", "report-section"]) {
+    document.getElementById(id).hidden = !report;
+  }
+  document.getElementById("track-section").hidden = state.reports.length < 2;
+  renderVerdict();
+  renderEvidence();
   renderMatrix();
   renderCard();
+  renderLegend();
+  renderTracks();
+}
+
+function renderVerdict() {
+  const host = document.getElementById("verdict");
+  host.replaceChildren();
+  const report = current();
+  if (!report) return;
+
+  const box = el("div", { class: `verdict ${report.call}` });
+  if (isMock(report)) box.append(el("p", { class: "mock-tag" }, "Sample report"));
+  const body = el("div", { class: "body" });
+  const left = el("div");
+  left.append(el("p", { class: "vid" }, report.variant_id));
+  left.append(el("p", { class: "call" }, CALL_LABEL[report.call]));
+  left.append(el("p", { class: "meaning" }, CALL_MEANING[report.call]));
+  body.append(left);
+
+  const meta = el("div", { class: "meta" });
+  const conf = el("span");
+  line(conf, term("Confidence", TIPS.confidence),
+    typeof report.confidence === "number"
+      ? `: ${report.confidence.toFixed(2)}, not calibrated`
+      : ": none, because no call was made");
+  meta.append(conf);
+
+  const driving = Array.isArray(report.driving_agents) ? report.driving_agents : [];
+  const drive = el("span");
+  line(drive, term("Carried by", TIPS.driving), `: ${driving.length ? driving.join(", ") : "no agent"}`);
+  meta.append(drive);
+
+  const conflicts = Array.isArray(report.conflicts) ? report.conflicts : [];
+  const dis = el("span");
+  line(dis, term("Disagreements", TIPS.conflict), `: ${conflicts.length ? String(conflicts.length) : "none"}`);
+  meta.append(dis);
+
+  body.append(meta);
+  box.append(body);
+  host.append(box);
+
+  const codes = acmgCodes(report);
+  const codeRow = el("div", { class: "codes" });
+  if (codes.length) {
+    for (const entry of codes) {
+      const chip = el("span", { class: `code ${entry.kind}` });
+      chip.append(el("b", {}, entry.code.replace("_", " ")));
+      chip.append(term(entry.strength, `${entry.basis}. Here: ${entry.measured}.`));
+      codeRow.append(chip);
+    }
+  } else {
+    const chip = el("span", { class: "code none" });
+    chip.append(term("No population criterion met",
+      "The measured frequency sits between the benign and the rare thresholds, or no frequency was returned, so no ACMG population code applies on frequency alone."));
+    codeRow.append(chip);
+  }
+  const caveat = el("span", { class: "code none" });
+  caveat.append(term("General thresholds",
+    "These are the general ACMG 2015 and ClinGen SVI defaults, not a BRCA1 expert-panel specification. Where an expert panel has published gene-specific thresholds, those take precedence. Computational criteria such as PP3 and BP4 are not emitted, because ClinGen asks for calibrated predictors and nothing here is calibrated yet."));
+  codeRow.append(caveat);
+  host.append(codeRow);
+
+  const match = ID_RE.exec(report.variant_id);
+  if (match) {
+    const [, build, chrom, pos, ref, alt] = match;
+    const row = el("div", { class: "sources-row" });
+    row.append(document.createTextNode("Check the numbers yourself:"));
+    const gnomad = el("a", {
+      href: `https://gnomad.broadinstitute.org/variant/${chrom}-${pos}-${ref}-${alt}?dataset=gnomad_r2_1`,
+      target: "_blank", rel: "noopener noreferrer",
+    }, "this variant in gnomAD v2.1.1");
+    const ucsc = el("a", {
+      href: `https://genome.ucsc.edu/cgi-bin/hgTracks?db=${build === "GRCh37" ? "hg19" : "hg38"}`
+        + `&position=chr${chrom}:${Number(pos) - 10}-${Number(pos) + 10}`
+        + `&highlight=${build === "GRCh37" ? "hg19" : "hg38"}.chr${chrom}:${pos}-${pos}&phyloP100wayAll=full`,
+      target: "_blank", rel: "noopener noreferrer",
+    }, "this position in the UCSC browser");
+    row.append(gnomad, ucsc);
+    host.append(row);
+  }
+}
+
+function keyValue(finding) {
+  const info = AGENT_INFO[finding.agent] || {};
+  const raw = finding.raw_values || {};
+  if (finding.agent === "population") {
+    if (raw.observation === "observed" && typeof raw.af === "number") {
+      const pct = raw.af >= 0.001 ? `${(raw.af * 100).toFixed(1)}%` : raw.af.toExponential(2);
+      return [pct, `carried by ${Number(raw.ac).toLocaleString("en-US")} of ${Number(raw.an).toLocaleString("en-US")} copies tested`];
+    }
+    if (raw.observation === "not_observed") return ["Not seen", "nobody tested carried this change"];
+    if (raw.observation === "no_call") return ["No reading", "this site could not be measured reliably"];
+    return [null, null];
+  }
+  if (info.valueKey && typeof raw[info.valueKey] === "number") {
+    return [String(raw[info.valueKey]), info.valueLabel];
+  }
+  return [null, null];
+}
+
+function renderEvidence() {
+  const host = document.getElementById("evidence");
+  const note = document.getElementById("evidence-note");
+  host.replaceChildren();
+  note.replaceChildren();
+  const report = current();
+  if (!report) return;
+
+  const findings = findingsByAgent(report, state.stage);
+  const working = AGENTS.filter((a) => findings.get(a) && findings.get(a).status === "ok").length;
+  line(note,
+    `Each agent sees one kind of evidence and nothing else, so none of them can be swayed by another's data. ${working} of ${AGENTS.length} returned evidence here. `,
+    term("They then compared notes once.", TIPS.rebuttal));
+
+  for (const agent of AGENTS) {
+    const info = AGENT_INFO[agent];
+    const finding = findings.get(agent);
+    const verdict = finding && finding.status === "ok" ? finding.verdict : null;
+    const card = el("div", { class: `agent-card ${verdict ? `is-${verdict}` : "is-none"}` });
+    card.append(el("h3", {}, info.title));
+    card.append(el("p", { class: "asks" }, info.asks));
+
+    if (!finding) {
+      card.append(el("p", { class: "said is-none" }, "No finding recorded"));
+      host.append(card);
+      continue;
+    }
+    if (finding.status !== "ok") {
+      card.append(el("p", { class: "said is-none" }, STATUS_LABEL[finding.status] || finding.status));
+      card.append(prose(finding.rationale, "why"));
+      host.append(card);
+      continue;
+    }
+
+    const [value, label] = keyValue(finding);
+    if (value !== null) {
+      card.append(el("p", { class: "value" }, value));
+      const valueLine = el("p", { class: "value-label" });
+      if (agent === "conservation") line(valueLine, term(label, TIPS.conservation));
+      else if (agent === "population") line(valueLine, term(label, TIPS.frequency));
+      else valueLine.textContent = label;
+      card.append(valueLine);
+    }
+    card.append(el("p", { class: `said is-${verdict}` }, VERDICT_LABEL[verdict] || verdict));
+    card.append(prose(finding.rationale, "why"));
+    if (finding.revision_reason) {
+      card.append(el("p", { class: "revision" }, `Changed its mind after comparing notes: ${finding.revision_reason}`));
+    }
+    host.append(card);
+  }
+}
+
+function pairState(first, second) {
+  if (!VERDICTS.has(first) || !VERDICTS.has(second)) return ["invalid verdict", "na"];
+  const uncertain = [first, second].filter((v) => v === "uncertain").length;
+  if (uncertain === 2) return ["both not decisive", "uncertain"];
+  if (uncertain === 1) {
+    const firm = first === "uncertain" ? second : first;
+    return [`one not decisive, one says ${VERDICT_SHORT[firm]}`, "uncertain"];
+  }
+  if (first === second) return [`both say ${VERDICT_SHORT[first]}`, "agree"];
+  return [`${VERDICT_SHORT[first]} vs ${VERDICT_SHORT[second]}`, "conflict"];
+}
+
+function renderMatrix() {
+  const host = document.getElementById("matrix");
+  const note = document.getElementById("matrix-note");
+  host.replaceChildren();
+  note.replaceChildren();
+  const report = current();
+  if (!report) return;
+
+  const revised = AGENTS.filter((agent) => wasRevised(report, agent));
+  line(note,
+    "Read a cell as what those two agents concluded. Green means they matched, red is a ",
+    term("direct disagreement", TIPS.conflict),
+    ", and grey means one of them had nothing to compare. ",
+    revised.length
+      ? `${revised.join(" and ")} changed verdict after comparing notes, so switch between the two views to see what moved.`
+      : "No agent changed its verdict after comparing notes.");
+
+  const findings = findingsByAgent(report, state.stage);
+  if (!AGENTS.some((agent) => findings.has(agent))) {
+    host.append(el("p", { class: "muted" }, "This report has no panel findings, for example a single-agent baseline report."));
+    return;
+  }
+
+  const table = el("table", { class: "matrix" });
+  const head = el("tr");
+  head.append(el("th", { scope: "col" }, ""));
+  for (const agent of AGENTS) head.append(el("th", { scope: "col" }, agent));
+  const thead = el("thead");
+  thead.append(head);
+  const tbody = el("tbody");
+
+  for (const rowAgent of AGENTS) {
+    const row = el("tr");
+    row.append(el("th", { scope: "row" }, rowAgent));
+    for (const colAgent of AGENTS) {
+      const a = findings.get(rowAgent);
+      const b = findings.get(colAgent);
+      let text, cls;
+      if (rowAgent === colAgent) {
+        if (!a) text = "absent";
+        else if (a.status !== "ok") text = STATUS_LABEL[a.status] || String(a.status);
+        else text = VERDICT_LABEL[a.verdict] || "invalid verdict";
+        cls = "self";
+        if (wasRevised(report, rowAgent)) { text += " (changed)"; cls += " revised"; }
+      } else if (a && b && a.status === "ok" && b.status === "ok") {
+        [text, cls] = pairState(a.verdict, b.verdict);
+      } else {
+        text = "nothing to compare";
+        cls = "na";
+      }
+      row.append(el("td", { class: cls }, text));
+    }
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  host.append(table);
+}
+
+function findingsTable(list) {
+  const wrap = el("div", { class: "table-scroll" });
+  const table = el("table");
+  const head = el("tr");
+  for (const name of ["Agent", "Status", "Verdict", "Reasoning", "Measured values", "Source", "Reason for change"]) {
+    head.append(el("th", { scope: "col" }, name));
+  }
+  const thead = el("thead");
+  thead.append(head);
+  const tbody = el("tbody");
+  for (const f of Array.isArray(list) ? list : []) {
+    if (!f || typeof f !== "object") continue;
+    const row = el("tr");
+    const raw = f.raw_values && Object.keys(f.raw_values).length ? JSON.stringify(f.raw_values) : "";
+    const sources = Array.isArray(f.sources) ? f.sources.join(", ") : "";
+    const cells = [
+      f.agent,
+      STATUS_LABEL[f.status] || f.status,
+      f.verdict ? VERDICT_LABEL[f.verdict] || f.verdict : "",
+      f.rationale,
+      raw,
+      sources,
+      f.revision_reason || "",
+    ];
+    cells.forEach((value, index) => {
+      row.append(el("td", index === 4 ? { class: "raw" } : {}, value === undefined || value === null ? "" : value));
+    });
+    tbody.append(row);
+  }
+  table.append(thead, tbody);
+  wrap.append(table);
+  return wrap;
+}
+
+function renderCard() {
+  const host = document.getElementById("card");
+  host.replaceChildren();
+  const report = current();
+  if (!report) return;
+
+  host.append(el("h4", {}, "What would settle it"));
+  host.append(prose(report.what_would_settle_it));
+
+  const conflicts = Array.isArray(report.conflicts) ? report.conflicts : [];
+  if (conflicts.length) {
+    host.append(el("h4", {}, "Disagreements the chair weighed"));
+    const list = el("ul");
+    for (const conflict of conflicts) list.append(el("li", {}, conflict));
+    host.append(list);
+  }
+
+  host.append(el("h4", {}, "For the counselor"));
+  host.append(prose(report.counselor_summary));
+  host.append(el("h4", {}, "For the counselor to share with the patient"));
+  const quote = el("blockquote");
+  quote.append(el("p", {}, report.patient_summary || ""));
+  host.append(quote);
+
+  const details = el("details");
+  details.append(el("summary", {}, "Every finding in full, with measured values and sources"));
+  details.append(el("p", { class: "note" }, state.stage === "initial"
+    ? "Showing what each agent said before they compared notes."
+    : "Showing what each agent said after they compared notes."));
+  details.append(findingsTable(state.stage === "initial" ? report.findings_initial : report.findings_after_rebuttal));
+  host.append(details);
 }
 
 function renderLegend() {
@@ -236,26 +960,30 @@ function renderLegend() {
   }
   const ring = el("span");
   const hollow = el("span", { class: "swatch" });
-  hollow.style.border = "2px solid var(--muted)";
-  ring.append(hollow, document.createTextNode("Hollow ring: confidence not calibrated"));
+  hollow.style.border = "2px solid var(--ink-soft)";
+  ring.append(hollow, document.createTextNode("Hollow: the panel made no call"));
   host.append(ring);
 }
 
 function renderTracks() {
   const host = document.getElementById("tracks");
   const unplaced = document.getElementById("unplaced");
+  const note = document.getElementById("track-note");
   host.replaceChildren();
   unplaced.replaceChildren();
-  if (!state.reports.length) {
-    host.append(el("p", { class: "muted" }, "No reports loaded."));
-    return;
-  }
+  note.replaceChildren();
+  if (state.reports.length < 2) return;
+
+  line(note,
+    "One marker per variant, at its position along the gene. Colour is how far the agents agreed, and clicking a marker opens that report. The markers in red are the ones worth a ",
+    term("lab assay", TIPS.conflict),
+    " first. Each genome build and chromosome gets its own axis, so positions from different builds are never mixed.");
 
   const groups = new Map();
   state.reports.forEach((report, index) => {
     const match = ID_RE.exec(report.variant_id);
     if (!match) {
-      unplaced.append(el("li", {}, `${report.variant_id}: not placed, ID is not BUILD-CHROM-POS-REF-ALT`));
+      unplaced.append(el("li", {}, `${report.variant_id}: not placed, the ID is not in BUILD-CHROMOSOME-POSITION-NORMAL-CHANGED form`));
       return;
     }
     const key = `${match[1]} chr${match[2]}`;
@@ -283,7 +1011,7 @@ function renderTracks() {
 
     const wrap = el("div", { class: "track-wrap" });
     wrap.append(el("h3", {}, key));
-    const root = svgEl("svg", { class: "track", viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": `Confidence track for ${key}` });
+    const root = svgEl("svg", { class: "track", viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": `Variants reviewed on ${key}` });
     root.append(svgEl("line", { class: "axis", x1: padX, x2: width - padX, y1: axisY, y2: axisY }));
     root.append(svgEl("text", { class: "tick", x: padX, y: axisY + 20, "text-anchor": "start" }, lo.toLocaleString("en-US")));
     root.append(svgEl("text", { class: "tick", x: width - padX, y: axisY + 20, "text-anchor": "end" }, hi.toLocaleString("en-US")));
@@ -291,18 +1019,17 @@ function renderTracks() {
     for (const point of points) {
       const report = point.report;
       const classes = ["pt", band(report)];
-      if (report.calibrated !== true) classes.push("hollow");
+      if (report.call === "unresolved") classes.push("hollow");
       const cy = axisY - radius - 4 - point.row * step;
       const circle = svgEl("circle", { class: classes.join(" "), cx: point.cx, cy, r: radius, tabindex: 0, role: "button" });
-      const confidence = typeof report.confidence === "number" ? report.confidence.toFixed(2) : "none";
-      const label = `${report.variant_id}: ${CALL_LABEL[report.call]}, confidence ${confidence}, ${report.calibrated === true ? "calibrated" : "not calibrated"}${isMock(report) ? ", MOCK" : ""}`;
+      const label = `${report.variant_id}: ${agreementText(report)}. Panel call: ${CALL_LABEL[report.call]}.${isMock(report) ? " Sample." : ""}`;
       circle.setAttribute("aria-label", label);
       circle.append(svgEl("title", {}, label));
       circle.addEventListener("click", () => select(point.index));
       circle.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(point.index); }
       });
-      // Selection is an extra dashed ring, so the point keeps its band color.
+      // Selection is an extra dashed ring, so the marker keeps its own colour.
       if (point.index === state.selected) {
         root.append(svgEl("circle", { class: "sel-ring", cx: point.cx, cy, r: radius + 5 }));
       }
@@ -313,160 +1040,131 @@ function renderTracks() {
   }
 }
 
-function findingsByAgent(report, stage) {
-  const list = stage === "initial" ? report.findings_initial : report.findings_after_rebuttal;
-  const map = new Map();
-  for (const finding of list) {
-    if (finding && typeof finding.agent === "string") map.set(finding.agent, finding);
-  }
-  return map;
-}
+function askQuestion(question) {
+  const thread = document.getElementById("thread");
+  const turn = el("div", { class: "turn" });
+  turn.append(el("p", { class: "asked" }, question));
+  const answer = el("p", { class: "answered pending" }, "Thinking");
+  turn.append(answer);
+  thread.prepend(turn);
 
-function wasRevised(report, agent) {
-  const before = findingsByAgent(report, "initial").get(agent);
-  const after = findingsByAgent(report, "after").get(agent);
-  return Boolean(before && after && before.status === "ok" && after.status === "ok" && before.verdict !== after.verdict);
-}
-
-function pairState(first, second) {
-  if (!VERDICTS.has(first) || !VERDICTS.has(second)) return ["invalid verdict", "na"];
-  const uncertain = [first, second].filter((verdict) => verdict === "uncertain").length;
-  if (uncertain === 2) return ["both uncertain", "uncertain"];
-  if (uncertain === 1) return ["one uncertain", "uncertain"];
-  if (first === second) return ["agree", "agree"];
-  return ["conflict", "conflict"];
-}
-
-function renderMatrix() {
-  const host = document.getElementById("matrix");
-  host.replaceChildren();
   const report = current();
-  if (!report) {
-    host.append(el("p", { class: "muted" }, "Select a variant to see agent agreement."));
-    return;
-  }
-  const findings = findingsByAgent(report, state.stage);
-  if (!AGENTS.some((agent) => findings.has(agent))) {
-    host.append(el("p", { class: "muted" }, "This report has no panel findings, for example a single-agent baseline report."));
-    return;
-  }
-
-  const table = el("table", { class: "matrix" });
-  table.append(el("caption", { class: "note" }, `${report.variant_id}, ${state.stage === "initial" ? "initial findings" : "after rebuttal"}`));
-  const head = el("tr");
-  head.append(el("th", { scope: "col" }, ""));
-  for (const agent of AGENTS) head.append(el("th", { scope: "col" }, agent));
-  const thead = el("thead");
-  thead.append(head);
-  const tbody = el("tbody");
-
-  for (const rowAgent of AGENTS) {
-    const row = el("tr");
-    row.append(el("th", { scope: "row" }, rowAgent));
-    for (const colAgent of AGENTS) {
-      const a = findings.get(rowAgent);
-      const b = findings.get(colAgent);
-      let text, cls;
-      if (rowAgent === colAgent) {
-        if (!a) text = "absent";
-        else if (a.status !== "ok") text = String(a.status);
-        else text = VERDICTS.has(a.verdict) ? a.verdict : "invalid verdict";
-        cls = "self";
-        if (wasRevised(report, rowAgent)) { text += " (revised in rebuttal)"; cls += " revised"; }
-      } else if (a && b && a.status === "ok" && b.status === "ok") {
-        [text, cls] = pairState(a.verdict, b.verdict);
-      } else {
-        text = "not comparable";
-        cls = "na";
-      }
-      row.append(el("td", { class: cls }, text));
-    }
-    tbody.append(row);
-  }
-  table.append(thead, tbody);
-  host.append(table);
-}
-
-function fact(dl, term, value) {
-  dl.append(el("dt", {}, term), el("dd", {}, value));
-}
-
-function findingsTable(list) {
-  const wrap = el("div", { class: "table-scroll" });
-  const table = el("table");
-  const head = el("tr");
-  for (const name of ["Agent", "Status", "Verdict", "Rationale", "Raw values", "Sources", "Revision reason"]) {
-    head.append(el("th", { scope: "col" }, name));
-  }
-  const thead = el("thead");
-  thead.append(head);
-  const tbody = el("tbody");
-  for (const f of Array.isArray(list) ? list : []) {
-    if (!f || typeof f !== "object") continue;
-    const row = el("tr");
-    const raw = f && f.raw_values && Object.keys(f.raw_values).length ? JSON.stringify(f.raw_values) : "";
-    const sources = f && Array.isArray(f.sources) ? f.sources.join(", ") : "";
-    for (const value of [f.agent, f.status, f.verdict || "", f.rationale, raw, sources, f.revision_reason || ""]) {
-      row.append(el("td", {}, value === undefined || value === null ? "" : value));
-    }
-    tbody.append(row);
-  }
-  table.append(thead, tbody);
-  wrap.append(table);
-  return wrap;
-}
-
-function renderCard() {
-  const host = document.getElementById("card");
-  host.replaceChildren();
-  const report = current();
-  if (!report) {
-    host.append(el("p", { class: "muted" }, "Select a variant to see its report."));
-    return;
-  }
-  if (isMock(report)) host.append(el("p", { class: "mock-tag" }, "MOCK record"));
-  host.append(el("h3", {}, report.variant_id));
-
-  const facts = el("dl", { class: "facts" });
-  fact(facts, "Call", CALL_LABEL[report.call]);
-  fact(facts, "Confidence", typeof report.confidence === "number" ? report.confidence.toFixed(2) : "none");
-  fact(facts, "Calibrated", report.calibrated === true ? "yes" : "no");
-  const driving = Array.isArray(report.driving_agents) ? report.driving_agents : [];
-  fact(facts, "Driving agents", driving.length ? driving.join(", ") : "none");
-  host.append(facts);
-
-  host.append(el("h4", {}, "Conflicts"));
-  const conflicts = Array.isArray(report.conflicts) ? report.conflicts : [];
-  if (conflicts.length) {
-    const list = el("ul");
-    for (const conflict of conflicts) list.append(el("li", {}, conflict));
-    host.append(list);
-  } else {
-    host.append(el("p", { class: "muted" }, "none"));
-  }
-
-  host.append(el("h4", {}, "What would settle it"), el("p", {}, report.what_would_settle_it || ""));
-  host.append(el("h4", {}, "Counselor summary"), el("p", {}, report.counselor_summary || ""));
-  host.append(el("h4", {}, "Patient summary, for the counselor to share"));
-  host.append(el("blockquote", {}, report.patient_summary || ""));
-
-  host.append(el("h4", {}, "Findings before rebuttal"), findingsTable(report.findings_initial));
-  host.append(el("h4", {}, "Findings after rebuttal"), findingsTable(report.findings_after_rebuttal));
+  fetch("/explain", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(report ? { question, report } : { question }),
+  })
+    .then(async (response) => {
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(describeError(data));
+      if (!data || typeof data.answer !== "string") throw new Error("the server did not return an answer");
+      answer.textContent = data.answer;
+      answer.className = "answered";
+    })
+    .catch((error) => {
+      answer.textContent = `Could not answer that: ${error.message}`;
+      answer.className = "answered failed";
+    });
 }
 
 function describeError(body) {
   if (body && Array.isArray(body.detail)) return body.detail.map((d) => (d && d.msg) || "invalid input").join("; ");
   if (body && typeof body.detail === "string") return body.detail;
-  return "unknown error";
+  return "the server did not say why";
+}
+
+/* Static copy that carries tooltips, written once on load. */
+function buildStaticCopy() {
+  line(document.getElementById("start-note"),
+    "A ", term("variant", TIPS.variant),
+    " is one letter of DNA changed at one ", term("position", TIPS.position),
+    ". Enter the letter normally found there and the letter this person has instead, or try one of the examples.");
+
+  for (const [id, text, tip] of [
+    ["label-pos", "Position", TIPS.position],
+    ["label-ref", "Normal base", TIPS.ref],
+    ["label-alt", "Changed to", TIPS.alt],
+    ["label-build", "Genome build", TIPS.build],
+  ]) {
+    document.getElementById(id).firstChild.replaceWith(term(text, tip));
+  }
+
+  const examples = document.getElementById("examples");
+  examples.append(document.createTextNode("Try one:"));
+  for (const example of EXAMPLES) {
+    const button = el("button", { type: "button", class: "quiet" }, example.label);
+    button.addEventListener("click", () => {
+      document.getElementById("chrom").value = example.chrom;
+      document.getElementById("pos").value = String(example.pos);
+      document.getElementById("ref").value = example.ref;
+      document.getElementById("alt").value = example.alt;
+      setStatus(`Filled in ${example.chrom}:${example.pos}, ${example.ref} changed to ${example.alt}. Choose Review this variant to run the panel.`);
+    });
+    examples.append(button);
+  }
+
+  line(document.getElementById("print-note"),
+    "Printing gives you one page with the call, every agent's finding and both summaries, and leaves out the form and the ",
+    term("full findings table", "Open the full findings section below first if you want the measured values and sources on the printed page too."),
+    " unless you have opened it.");
+
+  document.getElementById("print-report").addEventListener("click", () => {
+    if (!current()) return;
+    window.print();
+  });
+
+  line(document.getElementById("ask-note"),
+    "Questions about the data, the method or the report on screen, answered in plain language first and then in ",
+    term("technical terms", "The second half of each answer names the actual fields, sources and numbers, for readers who want the precise version."),
+    ". This is a reading aid: it explains what the panel did and will not give its own opinion on a variant or any clinical advice.");
+
+  const suggested = document.getElementById("suggested");
+  suggested.append(document.createTextNode("Try asking:"));
+  for (const question of SUGGESTED) {
+    const button = el("button", { type: "button", class: "quiet" }, question);
+    button.addEventListener("click", () => askQuestion(question));
+    suggested.append(button);
+  }
+
+  document.getElementById("ask-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = document.getElementById("ask-input");
+    const question = input.value.trim();
+    if (!question) return;
+    askQuestion(question);
+    input.value = "";
+  });
+
+  line(document.getElementById("footer-note"),
+    "Evidence comes from phyloP 100-way conservation at UCSC, gnomAD v2.1.1 allele frequencies, and Evo 2 with its sparse autoencoder. ",
+    term("Confidence is not calibrated.", TIPS.confidence),
+    " No clinical decision should rest on a variant of uncertain significance.");
+}
+
+/* Theme: the reader chooses, and the choice is remembered in this browser. */
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.getElementById("theme-light").setAttribute("aria-pressed", String(theme === "light"));
+  document.getElementById("theme-dark").setAttribute("aria-pressed", String(theme === "dark"));
+  try { localStorage.setItem("genius-theme", theme); } catch (error) { /* storage unavailable */ }
+}
+
+function initTheme() {
+  let stored = null;
+  try { stored = localStorage.getItem("genius-theme"); } catch (error) { /* storage unavailable */ }
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(stored || (prefersDark ? "dark" : "light"));
+  document.getElementById("theme-light").addEventListener("click", () => applyTheme("light"));
+  document.getElementById("theme-dark").addEventListener("click", () => applyTheme("dark"));
 }
 
 document.getElementById("load-fixtures").addEventListener("click", async () => {
   try {
     const response = await fetch("/fixtures");
-    if (!response.ok) throw new Error(`server returned ${response.status}`);
-    setReports(await response.json(), "fixtures");
+    if (!response.ok) throw new Error(`the server returned ${response.status}`);
+    setReports(await response.json(), "the sample set");
   } catch (error) {
-    setStatus(`Could not load fixtures: ${error.message}`, true);
+    setStatus(`Could not load the samples: ${error.message}`, "error");
   }
 });
 
@@ -476,7 +1174,7 @@ document.getElementById("load-file").addEventListener("change", async (event) =>
   try {
     setReports(JSON.parse(await file.text()), file.name);
   } catch (error) {
-    setStatus(`Could not load ${file.name}: ${error.message}`, true);
+    setStatus(`Could not read ${file.name}: ${error.message}`, "error");
   }
 });
 
@@ -489,7 +1187,11 @@ document.getElementById("review-form").addEventListener("submit", async (event) 
     alt: document.getElementById("alt").value,
     genome_build: document.getElementById("build").value,
   };
-  setStatus("Reviewing...", false);
+  if (body.ref === body.alt) {
+    setStatus("The normal base and the changed base are the same, so there is no change to review.", "error");
+    return;
+  }
+  setStatus("Four agents are reviewing this variant, then the chair decides. This takes a few seconds", "working");
   try {
     const response = await fetch("/review", {
       method: "POST",
@@ -498,25 +1200,30 @@ document.getElementById("review-form").addEventListener("submit", async (event) 
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      setStatus(`Review failed (${response.status}): ${describeError(data)}`, true);
+      setStatus(`The review did not run: ${describeError(data)}`, "error");
       return;
     }
-    if (!isReportShape(data)) throw new Error("the server did not return a PanelReport");
+    if (!isReportShape(data)) throw new Error("the server did not return a report");
     state.reports.push(data);
     select(state.reports.length - 1);
-    setStatus(`Reviewed ${data.variant_id}: ${CALL_LABEL[data.call]}.`, false);
+    setStatus(`Reviewed ${data.variant_id}. The panel says: ${CALL_LABEL[data.call]}.`);
+    document.getElementById("result-section").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
-    setStatus(`Review failed: ${error.message}`, true);
+    setStatus(`The review did not run: ${error.message}`, "error");
   }
 });
 
 for (const radio of document.querySelectorAll('input[name="stage"]')) {
   radio.addEventListener("change", (event) => {
     state.stage = event.target.value;
+    renderEvidence();
     renderMatrix();
+    renderCard();
   });
 }
 
+initTheme();
+buildStaticCopy();
 render();
 </script>
 </body>
