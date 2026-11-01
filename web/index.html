@@ -183,6 +183,8 @@
   .agent-card .said.is-uncertain { color: var(--base-g); }
   .agent-card .said.is-none { color: var(--ink-soft); }
   .agent-card .why { font-size: 0.875rem; color: var(--ink-soft); margin: 0; }
+  .agent-card .preview-caption { font-size: 0.8125rem; color: var(--ink-soft); margin: 0 0 0.6rem; }
+  .agent-card .preview-features { list-style: none; padding: 0; margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 0.875rem; }
   .agent-card .revision { font-size: 0.8125rem; margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--rule-soft); color: var(--base-g); }
 
   .stage-toggle { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1rem; font-size: 0.9375rem; }
@@ -408,6 +410,21 @@
 
 const AGENTS = ["evo2", "sae", "conservation", "population"];
 const ROW_LABEL = { sae: "sae (planned, not in this build)" };
+
+// Frontend prototype preview of the planned SAE card, for layout work only.
+// Off by default; only the URL query ?preview=sae turns it on. The SAE agent still
+// returns unavailable, and nothing from the server can turn this on.
+// SYNTHETIC_SAE_PREVIEW_FEATURES is hand-written display data, not model output.
+// The feature names carry no claimed biological meaning and the shifts are not
+// results. It is read only by saePreviewCard(), and never enters state.reports,
+// findings, the agreement matrix, the verdict, saved reports or any request.
+const SAE_PREVIEW = new URLSearchParams(window.location.search).get("preview") === "sae";
+const SYNTHETIC_SAE_PREVIEW_FEATURES = Object.freeze([
+  Object.freeze({ name: "Example feature A", shift: -0.42 }),
+  Object.freeze({ name: "Example feature B", shift: 0.18 }),
+  Object.freeze({ name: "Example feature C", shift: -0.07 }),
+]);
+const SAE_PREVIEW_CAPTION = "Prototype layout. Example values, not computed.";
 const CALLS = new Set(["likely_damaging", "likely_tolerated", "unresolved"]);
 const VERDICTS = new Set(["damaging", "tolerated", "uncertain"]);
 
@@ -776,6 +793,12 @@ function renderEvidence() {
 
   for (const agent of AGENTS) {
     const info = AGENT_INFO[agent];
+    // Preview mode depends on the URL flag alone, never on the finding, so a backend
+    // failure can't show the synthetic card. The real SAE finding is left as it is.
+    if (agent === "sae" && SAE_PREVIEW) {
+      host.append(saePreviewCard(info));
+      continue;
+    }
     const finding = findings.get(agent);
     const verdict = finding && finding.status === "ok" ? finding.verdict : null;
     const card = el("div", { class: `agent-card ${verdict ? `is-${verdict}` : "is-none"}` });
@@ -810,6 +833,21 @@ function renderEvidence() {
     }
     host.append(card);
   }
+}
+
+// The prototype SAE card, drawn only in preview mode, always from the synthetic fixture.
+function saePreviewCard(info) {
+  const card = el("div", { class: "agent-card is-none" });
+  card.append(el("h3", {}, info.title));
+  card.append(el("p", { class: "asks" }, info.asks));
+  card.append(el("p", { class: "preview-caption" }, SAE_PREVIEW_CAPTION));
+  const list = el("ul", { class: "preview-features" });
+  for (const feature of SYNTHETIC_SAE_PREVIEW_FEATURES) {
+    const sign = feature.shift > 0 ? "+" : feature.shift < 0 ? "-" : "";
+    list.append(el("li", {}, `${feature.name}: activation shift ${sign}${Math.abs(feature.shift).toFixed(2)}`));
+  }
+  card.append(list);
+  return card;
 }
 
 function pairState(first, second) {

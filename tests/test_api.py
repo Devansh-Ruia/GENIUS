@@ -149,3 +149,72 @@ def test_page_opens_on_the_demo_reviews_and_labels_sae_as_planned():
     page = client.get("/").text
     assert 'fetch("/demo")' in page
     assert "sae (planned, not in this build)" in page
+
+
+# Frontend prototype preview of the SAE card (?preview=sae), with synthetic display data.
+# There is no JS runtime in the suite, so these read the page source; rendering is checked in a browser.
+
+def _function_body(page, name):
+    start = page.index(f"function {name}(")
+    end = page.index("\nfunction ", start + 1)
+    return page[start:end]
+
+
+def _code(page):
+    """The page without // comment lines, so counts see code only."""
+    return "\n".join(line for line in page.splitlines() if not line.strip().startswith("//"))
+
+
+def test_sae_preview_is_off_unless_the_url_asks_for_it():
+    page = _code(client.get("/").text)
+    assert 'const SAE_PREVIEW = new URLSearchParams(window.location.search).get("preview") === "sae";' in page
+    # Defined once and read once, by the guard in renderEvidence; nothing else can switch it on.
+    assert len(re.findall(r"\bSAE_PREVIEW\b", page)) == 2
+    assert 'if (agent === "sae" && SAE_PREVIEW) {' in _function_body(page, "renderEvidence")
+
+
+def test_synthetic_sae_features_are_fixed_and_read_only_by_the_preview_card():
+    page = _code(client.get("/").text)
+    uses = [m.start() for m in re.finditer(r"SYNTHETIC_SAE_PREVIEW_FEATURES", page)]
+    assert len(uses) == 2  # the definition, and the loop in saePreviewCard
+    assert "SYNTHETIC_SAE_PREVIEW_FEATURES" in _function_body(page, "saePreviewCard")
+    fixture = page[uses[0]:page.index("]);", uses[0])]
+    assert fixture.count("name:") == 3 and "Object.freeze" in fixture
+    for name in ("renderMatrix", "renderVerdict", "renderCard", "renderTracks", "setReports"):
+        body = _function_body(page, name)
+        assert "SAE_PREVIEW" not in body and "saePreviewCard" not in body, name
+
+
+def test_preview_card_carries_its_caption_and_never_reads_a_finding():
+    page = client.get("/").text
+    assert 'const SAE_PREVIEW_CAPTION = "Prototype layout. Example values, not computed.";' in page
+    body = _function_body(page, "saePreviewCard")
+    assert "SAE_PREVIEW_CAPTION" in body
+    assert "finding" not in body and "report" not in body and "fetch" not in body
+
+
+def test_default_mode_keeps_sae_unavailable_and_the_sample_notices():
+    page = client.get("/").text
+    evidence = _function_body(page, "renderEvidence")
+    assert "STATUS_LABEL[finding.status]" in evidence  # the unavailable path is unchanged
+    assert 'unavailable: "Evidence not available"' in page
+    assert 'const ROW_LABEL = { sae: "sae (planned, not in this build)" };' in page
+    assert 'document.getElementById("mock-banner").hidden = !state.reports.some(isMock);' in page
+    assert '"Sample report"' in page
+
+
+def test_saved_demo_reports_still_show_sae_unavailable():
+    from vus_panel import api
+    if not api.DEMO_PATH.is_file():
+        pytest.skip("no data/demo/panel_reports.json committed")
+    reports = api.load_demo(api.DEMO_PATH)
+    sae = [f for r in reports for f in [*r.findings_initial, *r.findings_after_rebuttal] if f.agent == "sae"]
+    assert sae and all(f.status == "unavailable" and f.verdict is None and not f.raw_values for f in sae)
+    assert "Example feature" not in api.DEMO_PATH.read_text(encoding="utf-8")
+
+
+def test_synthetic_preview_data_lives_only_in_the_page():
+    from vus_panel import config
+    for path in (config.REPO_ROOT / "src").rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        assert "SYNTHETIC_SAE" not in text and "Example feature" not in text, path
