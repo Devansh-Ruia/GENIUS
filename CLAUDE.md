@@ -16,7 +16,8 @@ uv venv --python 3.11 && uv pip install -e ".[dev]"
 .venv/Scripts/python -m pytest -q tests/test_isolation.py           # one file
 .venv/Scripts/python -m pytest -q "tests/test_isolation.py::test_agents_never_receive_findlay_fields"
 .venv/Scripts/python -m pytest -q -k answer_key                     # by name
-.venv/Scripts/python -m uvicorn vus_panel.api:app --reload          # API and page on :8000
+.venv/Scripts/python -m uvicorn vus_panel.api:app --reload          # API and page on :8000 (does not read .env)
+.venv/Scripts/python -m vus_panel.serve                             # same, after loading .env; prints names only
 .venv/Scripts/python -m vus_panel.eval.split [--force]              # reads data/raw/41586_2018_461_MOESM3_ESM.xlsx
 .venv/Scripts/python -m vus_panel.eval.run_eval --reports R.json --system panel [--allow-partial]
 .venv/Scripts/python -m vus_panel.eval.pilot prepare [--download]   # --download fetches the workbook and NC_000017.10

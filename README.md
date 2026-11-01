@@ -68,7 +68,7 @@ Serve the API and the page:
 
 Open http://127.0.0.1:8000. "Load fixtures" shows the five mock reports under a MOCK DATA banner. The review form posts a variant to `POST /review`, which returns `call: "unresolved"` with four unavailable findings until the agents are implemented.
 
-Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. The app does not read `.env` itself, so export the values in your shell, for example `set -a; source .env; set +a` in bash.
+Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. `.venv/Scripts/python -m vus_panel.serve` (or `.venv/bin/python`) loads `.env` and starts the server on :8000. A value already set in your shell wins, and only variable names are printed. Plain `uvicorn` does not read `.env`. The page opens on the saved real reviews in `data/demo/`.
 
 | Variable | Used for |
 | --- | --- |

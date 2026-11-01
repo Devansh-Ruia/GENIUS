@@ -1,0 +1,481 @@
+[
+  {
+    "variant_id": "GRCh37-17-41197722-T-C",
+    "call": "likely_tolerated",
+    "confidence": 0.6,
+    "calibrated": false,
+    "driving_agents": [
+      "conservation",
+      "evo2"
+    ],
+    "conflicts": [],
+    "what_would_settle_it": "Information on what the variant does to the protein or to splicing (for example its position relative to an exon boundary and its predicted consequence), good coverage data at this site, and a reference set showing which evo2 scores separate damaging from benign variants. Functional studies or case reports for this variant would also help.",
+    "counselor_summary": "Two lines of evidence lean toward this variant being tolerated, and neither is strong. Conservation at the position is low, and in the reference data variants in this lowest conservation group were rarely loss of function. The DNA language model scores the changed sequence as slightly more likely than the original, which is the opposite of a damaging pattern. However, this model result has no labeled reference points to say what counts as damaging, so it is weak support. The population evidence is uninformative because the variant is absent from gnomAD and there is no coverage data. The sparse-autoencoder (SAE) analysis could not be run. Conservation cannot exclude a splicing effect. No specialists disagree. Overall this leans tolerated with modest confidence.",
+    "patient_summary": "The tests we have so far suggest this change in the DNA is probably harmless. The spot is not one that has been carefully preserved across species, and the computer analysis did not show signs of damage. The evidence is not very strong, and some information is missing, so this is a leaning rather than a firm answer.",
+    "findings_initial": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "delta": 2.05029296875,
+          "delta_mean": 0.0002503104588878037,
+          "ref_total": -7904.7509765625,
+          "alt_total": -7902.70068359375,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 96.08472400513479,
+          "n_calibration_reference": 779
+        },
+        "rationale": "Delta is +2.05 (delta_mean +0.00025), so the model scores the ALT sequence as slightly more likely than the reference, not less. The calibration percentile of 96.1 means this change is more positive than about 96% of the 779 calibration variants, which is the opposite of the strongly negative shift expected for a disruptive change. The calibration note says no labeled reference points were available, so I cannot tell what delta separates damaging from benign variants, and a small positive shift from a single model score is only weak-to-moderate evidence of tolerance. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "If the calibration set showed that known damaging variants also commonly have positive deltas near +2, or if other evidence such as splice-site or functional-domain data pointed to disruption, I would move to uncertain or damaging.",
+        "revision_reason": null
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "score": -0.646378,
+          "position_percentile_in_region": 0.4645,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score is -0.646, which falls in the lowest calibration bin (-3.39 to 0.055). In that bin only 3.8% of variants were loss of function, well below the 21.2% base rate. This indicates the base is evolving freely, which is modest-to-moderate evidence against functional importance. Conservation alone cannot rule out damage by other mechanisms such as splicing.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "A phyloP score above about 4, where 31-49% of calibration variants were loss of function, or other evidence showing a splice or functional effect at this position, would move me away from tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no AN or AF available). In the calibration set, absent variants were loss of function 22.0% of the time, close to the 21.2% base rate, so absence barely moves the estimate. No coverage data is cached, so I can't tell a truly rare variant from a poorly covered site; this is weak evidence.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Observation of the variant at an appreciable allele frequency (for example above ~2.8e-5 across well-covered samples) would push me toward tolerated, and confirmed good coverage at this site with no carriers would modestly support rarity.",
+        "revision_reason": null
+      }
+    ],
+    "findings_after_rebuttal": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "delta": 2.05029296875,
+          "delta_mean": 0.0002503104588878037,
+          "ref_total": -7904.7509765625,
+          "alt_total": -7902.70068359375,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 96.08472400513479,
+          "n_calibration_reference": 779
+        },
+        "rationale": "Delta is +2.05 (delta_mean +0.00025), so the model scores the ALT sequence as slightly more likely than the reference, not less. The calibration percentile of 96.1 means this change is more positive than about 96% of the 779 calibration variants, which is the opposite of the strongly negative shift expected for a disruptive change. The calibration note says no labeled reference points were available, so I cannot tell what delta separates damaging from benign variants, and a small positive shift from a single model score is only weak-to-moderate evidence of tolerance. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "If the calibration set showed that known damaging variants also commonly have positive deltas near +2, or if other evidence such as splice-site or functional-domain data pointed to disruption, I would move to uncertain or damaging.",
+        "revision_reason": null
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "score": -0.646378,
+          "position_percentile_in_region": 0.4645,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score is -0.646, which falls in the lowest calibration bin (-3.39 to 0.055). In that bin only 3.8% of variants were loss of function, well below the 21.2% base rate. This indicates the base is evolving freely, which is modest-to-moderate evidence against functional importance. Conservation alone cannot rule out damage by other mechanisms such as splicing.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "A phyloP score above about 4, where 31-49% of calibration variants were loss of function, or other evidence showing a splice or functional effect at this position, would move me away from tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41197722-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no AN or AF available). In the calibration set, absent variants were loss of function 22.0% of the time, close to the 21.2% base rate, so absence barely moves the estimate. No coverage data is cached, so I can't tell a truly rare variant from a poorly covered site; this is weak evidence.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Observation of the variant at an appreciable allele frequency (for example above ~2.8e-5 across well-covered samples) would push me toward tolerated, and confirmed good coverage at this site with no carriers would modestly support rarity.",
+        "revision_reason": null
+      }
+    ],
+    "mock": false
+  },
+  {
+    "variant_id": "GRCh37-17-41197729-T-C",
+    "call": "unresolved",
+    "confidence": null,
+    "calibrated": false,
+    "driving_agents": [],
+    "conflicts": [],
+    "what_would_settle_it": "Functional assay data or a predicted effect on splicing or the protein for this specific base change would help most. Calibration showing where damaging variants fall on the Evo 2 score scale would also help. So would confirmed good sequencing coverage at this site in population data, and the variant's frequency in larger or more diverse population datasets.",
+    "counselor_summary": "The evidence for this variant is weak overall, and the specialists do not directly contradict each other. The position is well conserved across species, which raises the chance that it matters, but about half of variants at such positions were still not loss of function, so this is far from decisive. The Evo 2 language model score leans slightly toward the changed sequence looking less natural, but it sits well within the ordinary range and there is no reference to say what counts as damaging. The variant is absent from the population database, but absence barely changes the odds here and coverage at the site is unknown. The sparse-feature analysis could not be run. No single line of evidence carries enough weight, so the variant remains of uncertain significance on this evidence alone. ACMG guidance is that a variant of uncertain significance should not be used in clinical decision making.",
+    "patient_summary": "This change in the BRCA1 gene is not understood yet. It does not show a higher or a lower cancer risk, and care decisions should not be based on it. A genetic counselor can explain what this means and will share any update.",
+    "findings_initial": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "delta": -23.6484375,
+          "delta_mean": -0.0028871245879623975,
+          "ref_total": -7908.70703125,
+          "alt_total": -7932.35546875,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 21.116816431322206,
+          "n_calibration_reference": 779
+        },
+        "rationale": "Evo 2 gives delta = -23.65 (delta_mean -0.0029), so the alternate allele looks somewhat less natural than reference. The calibration_percentile is 21.1 of 779 calibration variants, meaning about 79% of them had less negative deltas. That is mildly on the negative side but nowhere near the extreme tail. No labeled reference points are provided, so I cannot tell what delta separates damaging from tolerated variants. The evidence is weak. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "A calibration set showing that pathogenic variants reliably fall below the ~21st percentile (or below a delta near -24), or a score in the bottom few percentile, would move me toward damaging; a delta near zero or a percentile above 50 would move me toward tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "score": 4.44398,
+          "position_percentile_in_region": 0.8438,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score of 4.444 falls in the top calibration bin (4.27 to 6.25), where 49.0% of variants were loss of function, versus a 21.2% base rate. That is a clear enrichment, but it is still roughly a coin flip and well short of the level needed to call the variant damaging. The score is per position and says nothing about which alt base this is or what it does to the protein.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "Functional assay data or a predicted splice or protein-level effect showing this specific alt base is disruptive would move me toward damaging, while a benign-looking substitution at a position with no known functional role would move me toward tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no allele number available). In the calibration set, absent variants are 22.0% loss of function against a 21.2% base rate, so absence barely shifts the odds. With no per-site coverage, I also cannot tell a truly rare variant from a poorly covered site. This is weak evidence.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Seeing the variant at an appreciable population frequency (for example allele frequency above ~2.5e-5 with adequate coverage) would push me toward tolerated, while confirmed good coverage at this site with zero carriers would make absence modestly more informative.",
+        "revision_reason": null
+      }
+    ],
+    "findings_after_rebuttal": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "delta": -23.6484375,
+          "delta_mean": -0.0028871245879623975,
+          "ref_total": -7908.70703125,
+          "alt_total": -7932.35546875,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 21.116816431322206,
+          "n_calibration_reference": 779
+        },
+        "rationale": "Evo 2 gives delta = -23.65 (delta_mean -0.0029), so the alternate allele looks somewhat less natural than reference. The calibration_percentile is 21.1 of 779 calibration variants, meaning about 79% of them had less negative deltas. That is mildly on the negative side but nowhere near the extreme tail. No labeled reference points are provided, so I cannot tell what delta separates damaging from tolerated variants. The evidence is weak. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "A calibration set showing that pathogenic variants reliably fall below the ~21st percentile (or below a delta near -24), or a score in the bottom few percentile, would move me toward damaging; a delta near zero or a percentile above 50 would move me toward tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "score": 4.44398,
+          "position_percentile_in_region": 0.8438,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score of 4.444 falls in the top calibration bin (4.27 to 6.25), where 49.0% of variants were loss of function, versus a 21.2% base rate. That is a clear enrichment, but it is still roughly a coin flip and well short of the level needed to call the variant damaging. The score is per position and says nothing about which alt base this is or what it does to the protein.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "Functional assay data or a predicted splice or protein-level effect showing this specific alt base is disruptive would move me toward damaging, while a benign-looking substitution at a position with no known functional role would move me toward tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41197729-T-C",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no allele number available). In the calibration set, absent variants are 22.0% loss of function against a 21.2% base rate, so absence barely shifts the odds. With no per-site coverage, I also cannot tell a truly rare variant from a poorly covered site. This is weak evidence.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Seeing the variant at an appreciable population frequency (for example allele frequency above ~2.5e-5 with adequate coverage) would push me toward tolerated, while confirmed good coverage at this site with zero carriers would make absence modestly more informative.",
+        "revision_reason": null
+      }
+    ],
+    "mock": false
+  },
+  {
+    "variant_id": "GRCh37-17-41201135-T-A",
+    "call": "unresolved",
+    "confidence": null,
+    "calibrated": false,
+    "driving_agents": [],
+    "conflicts": [
+      "evo2 initially leaned damaging on its percentile ranking while conservation says tolerated; after rebuttal evo2 withdrew to uncertain, so this is only a mild residual tension"
+    ],
+    "what_would_settle_it": "A labeled calibration showing which evo2 delta values separate loss-of-function from tolerated variants, evidence of a splice or domain-specific effect at this base, gnomAD coverage at the site, or functional or clinical data on this variant would help settle it.",
+    "counselor_summary": "The evidence here is thin and does not point clearly either way. The language model score places this change in the more unusual tail of its comparison set, but there was no labeled reference to show what that position means, so the evidence is weak. Conservation shows the position is essentially unconserved across species, which modestly argues against an important role. The variant is absent from the population database, but without coverage information this says very little. The protein-feature analysis could not be run. Weak lean toward tolerated from conservation alone is not enough to call it. Splice or other non-conservation effects have not been excluded. Calling it unresolved is the honest result. ACMG guidance is that a variant of uncertain significance should not be used in clinical decision making.",
+    "patient_summary": "This change in the BRCA1 gene is not understood yet. It does not show a higher or a lower cancer risk, and care decisions should not be based on it. A genetic counselor can explain what this means and will share any update.",
+    "findings_initial": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "damaging",
+        "raw_values": {
+          "delta": -70.81591796875,
+          "delta_mean": -0.008645576604657552,
+          "ref_total": -7309.9697265625,
+          "alt_total": -7380.78564453125,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 3.5301668806161746,
+          "n_calibration_reference": 779
+        },
+        "rationale": "The delta is -70.8 (delta_mean -0.0086), which ranks at the 3.5th percentile of 779 calibration deltas, so only about 3.5% of those variants look more unnatural to the model. That is a clear tail position and leans toward disruption. However, no labeled calibration reference points were supplied, so I cannot tell what delta separates damaging from tolerated variants. This is moderate, ranking-based evidence and not a calibrated one. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "If labeled calibration data showed that benign variants commonly reach deltas near -70 or lower, or that this percentile overlaps heavily with tolerated variants, I would move to uncertain or tolerated.",
+        "revision_reason": null
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "score": 0.0327244,
+          "position_percentile_in_region": 0.5151,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score is 0.033, which sits in the lowest calibration bin (-3.39 to 0.055). In that bin only 3.8% of variants were loss of function, well below the 21.2% base rate. The position is essentially unconserved across species, so this is moderately strong evidence against functional importance, though conservation alone cannot rule out a splice or other effect.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "A phyloP score above about 4.3 (the top two bins, 30-49% loss of function) would move me away from tolerated, as would other evidence showing a splicing or domain-specific effect at this base.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no allele number or coverage available). In the calibration set, 22.0% of absent variants were loss of function, against a 21.2% base rate, so absence barely shifts the probability. Without coverage data I cannot tell a truly rare variant from a poorly covered site, so this evidence is very weak.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Observation at an appreciable allele frequency (for example above about 1e-5 with adequate coverage) would push me toward tolerated, and confirmed good coverage at the site would make absence slightly more meaningful.",
+        "revision_reason": null
+      }
+    ],
+    "findings_after_rebuttal": [
+      {
+        "agent": "evo2",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "delta": -70.81591796875,
+          "delta_mean": -0.008645576604657552,
+          "ref_total": -7309.9697265625,
+          "alt_total": -7380.78564453125,
+          "next_token_terms": 8191,
+          "context_length": 8192,
+          "score_source": "stored",
+          "calibration_percentile": 3.5301668806161746,
+          "n_calibration_reference": 779
+        },
+        "rationale": "The delta is -70.8 (delta_mean -0.0086), which ranks at the 3.5th percentile of 779 calibration deltas, so only about 3.5% of those variants look more unnatural to the model. That is a clear tail position and leans toward disruption. However, no labeled calibration reference points were supplied, so I cannot tell what delta separates damaging from tolerated variants. This is moderate, ranking-based evidence and not a calibrated one. No calibration reference was available for this run.",
+        "sources": [
+          "Evo 2 stored result, run 20261101T001659Z-calibration-24f24f1172b3; service session 5fda3286-e739-4d9e-8895-f39c4d3434cc; metadata SHA256 ae182b5e2c9158eeaafdb84d4d1e91e21839711264ebdb6168a36be7741f9734"
+        ],
+        "what_would_change_my_mind": "A labeled calibration showing that deltas near -70 separate LoF from tolerated variants, or evidence of a splice or domain-specific effect at this base, would move me back to damaging.",
+        "revision_reason": "Conservation shows the site is essentially unconserved (phyloP 0.033, lowest bin with 3.8% LoF), and population data is uninformative, so my uncalibrated ranking-based percentile alone (3.5th) is not enough to support a 'damaging' call."
+      },
+      {
+        "agent": "sae",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "unavailable",
+        "verdict": null,
+        "raw_values": {},
+        "rationale": "EVO2_BACKEND_URL is not set. SAE features come from Evo 2 7B, which needs an FP8-capable GPU backend, and none is configured.",
+        "sources": [],
+        "what_would_change_my_mind": null,
+        "revision_reason": null
+      },
+      {
+        "agent": "conservation",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "tolerated",
+        "raw_values": {
+          "score": 0.0327244,
+          "position_percentile_in_region": 0.5151,
+          "region_min": -6.88,
+          "region_max": 6.54,
+          "scored_per": "position"
+        },
+        "rationale": "The phyloP score is 0.033, which sits in the lowest calibration bin (-3.39 to 0.055). In that bin only 3.8% of variants were loss of function, well below the 21.2% base rate. The position is essentially unconserved across species, so this is moderately strong evidence against functional importance, though conservation alone cannot rule out a splice or other effect.",
+        "sources": [
+          "phyloP 100-way vertebrate (hg19), UCSC"
+        ],
+        "what_would_change_my_mind": "A phyloP score above about 4.3 (the top two bins, 30-49% loss of function) would move me away from tolerated, as would other evidence showing a splicing or domain-specific effect at this base.",
+        "revision_reason": null
+      },
+      {
+        "agent": "population",
+        "variant_id": "GRCh37-17-41201135-T-A",
+        "status": "ok",
+        "verdict": "uncertain",
+        "raw_values": {
+          "observation": "not_observed",
+          "ac": 0,
+          "an": null,
+          "af": null
+        },
+        "rationale": "The variant is absent from gnomAD v2.1.1 (AC 0, no allele number or coverage available). In the calibration set, 22.0% of absent variants were loss of function, against a 21.2% base rate, so absence barely shifts the probability. Without coverage data I cannot tell a truly rare variant from a poorly covered site, so this evidence is very weak.",
+        "sources": [
+          "gnomAD v2.1.1 (GRCh37), exomes and genomes"
+        ],
+        "what_would_change_my_mind": "Observation at an appreciable allele frequency (for example above about 1e-5 with adequate coverage) would push me toward tolerated, and confirmed good coverage at the site would make absence slightly more meaningful.",
+        "revision_reason": null
+      }
+    ],
+    "mock": false
+  }
+]
