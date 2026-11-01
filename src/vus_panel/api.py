@@ -3,6 +3,7 @@
 GET /          serves web/index.html
 POST /review   takes a Variant without the Findlay fields and returns a PanelReport (422 if either is present)
 GET /fixtures  returns the mock PanelReports in data/fixtures/ for UI work
+POST /explain  answers a plain-English question about the data, the method or an open report
 """
 
 from __future__ import annotations
@@ -10,11 +11,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import TypeAdapter, model_validator
+from pydantic import BaseModel, Field, TypeAdapter, model_validator
 
-from vus_panel import config, orchestrator
+from vus_panel import config, explain, orchestrator
 from vus_panel.schemas import ANSWER_KEY_FIELDS, PanelReport, Variant
 
 MAX_FIXTURES = 5
@@ -64,6 +65,28 @@ def review(variant: ReviewRequest) -> PanelReport:
     return orchestrator.review(variant)
 
 
+class ExplainRequest(BaseModel):
+    """A question, plus the report the reader is looking at if there is one."""
+
+    model_config = {"extra": "forbid"}
+
+    question: str = Field(min_length=1, max_length=explain.MAX_QUESTION_CHARS)
+    report: PanelReport | None = None
+
+
+class ExplainResponse(BaseModel):
+    answer: str
+
+
 @app.get("/fixtures", response_model=list[PanelReport])
 def fixtures() -> list[PanelReport]:
     return load_fixtures()
+
+
+@app.post("/explain", response_model=ExplainResponse)
+def explain_route(request: ExplainRequest) -> ExplainResponse:
+    """Explain the panel. This is a reading aid and never reviews a variant."""
+    try:
+        return ExplainResponse(answer=explain.answer(request.question, request.report))
+    except explain.ExplainError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
