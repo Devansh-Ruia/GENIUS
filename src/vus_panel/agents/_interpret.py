@@ -10,19 +10,25 @@ Two rules this module exists to enforce:
    written by scripts/calibration_refs.py) and asked to read its number
    against them. Without that file an agent can still answer, but it says
    plainly that it had no reference.
-2. Anything that goes wrong — no API key, no model name, a malformed reply —
-   yields an 'unavailable' finding with a message naming the cause. An agent
-   never guesses a verdict, and never crashes the panel.
+2. No API key or model name yields an 'unavailable' finding; a failed call or
+   a reply that isn't the expected JSON yields an 'error' finding. Either way
+   the message names the cause. An agent never guesses a verdict, and never
+   crashes the panel.
+
+Numbers and sources always come from the tool. The model only supplies the
+verdict, the rationale and what would change its mind; any other key in its
+reply is ignored.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import Any
 
 from vus_panel import config
 from vus_panel.llm import LLMConfigError, get_client, get_model
-from vus_panel.schemas import AgentFinding, ToolResult
+from vus_panel.schemas import AgentFinding, ToolResult, mentions_clinvar
 
 CALIBRATION_FILE = "calibration_refs.json"
 VERDICTS: tuple[str, ...] = ("damaging", "tolerated", "uncertain")
@@ -37,9 +43,33 @@ SYSTEM = (
     "Reference points come from a held-out calibration set. Read your number against them rather "
     "than against a threshold you invent.\n"
     "Weak evidence deserves the verdict 'uncertain'. Saying so is a useful answer, not a failure.\n"
-    'Reply with JSON only: {"verdict": "damaging" | "tolerated" | "uncertain", "rationale": "..."}\n'
+    'Reply with JSON only: {"verdict": "damaging" | "tolerated" | "uncertain", "rationale": "...", '
+    '"what_would_change_my_mind": "..."}\n'
     "The rationale is two or three sentences, cites your actual number, and says how strong the "
-    "evidence is. No preamble, no markdown."
+    "evidence is. what_would_change_my_mind is one sentence naming the specific evidence or value "
+    "that would move you to a different verdict. No preamble, no markdown."
+)
+
+COMBINED_SYSTEM = (
+    "You are the only reviewer of a single BRCA1 DNA variant. You see every kind of evidence that is "
+    "available and nothing else. Do not speculate about evidence you were not given, and do not "
+    "recall what you may know about this variant from elsewhere. ClinVar and other variant databases "
+    "are not inputs here; if you recognise the variant, set that aside and reason only from the "
+    "numbers below.\n"
+    "Where reference points are given, they come from a held-out calibration set. Read each number "
+    "against them rather than against a threshold you invent.\n"
+    "Weak or conflicting evidence deserves the verdict 'uncertain' and the call 'unresolved'. Saying "
+    "so is a useful answer, not a failure.\n"
+    "Your confidence is your own judgement, not a measured probability, and it will be reported as "
+    "uncalibrated.\n"
+    "Write the counselor summary for a genetic counselor, and the patient summary for the patient "
+    "they will speak to: plain words, no jargon, no numbers, and no instruction to act.\n"
+    "Reply with JSON only, no markdown:\n"
+    '{"verdict": "damaging" | "tolerated" | "uncertain", "rationale": "...", '
+    '"what_would_change_my_mind": "...", "call": "likely_damaging" | "likely_tolerated" | "unresolved", '
+    '"confidence": 0.0 to 1.0, "what_would_settle_it": "...", "counselor_summary": "...", '
+    '"patient_summary": "..."}\n'
+    "For an unresolved call set confidence to null."
 )
 
 REBUTTAL_SYSTEM = (
@@ -50,9 +80,10 @@ REBUTTAL_SYSTEM = (
     "Agreement alone is not a reason to change, and neither is disagreement: your evidence is "
     "still your evidence. Holding firm is the common and correct outcome.\n"
     'Reply with JSON only: {"verdict": "damaging" | "tolerated" | "uncertain", "changed": true | false, '
-    '"reason": "..."}\n'
-    "If changed is false, reason may be an empty string. If changed is true, reason is one sentence "
-    "naming what moved you."
+    '"reason": "...", "what_would_change_my_mind": "..."}\n'
+    "If changed is false, reason and what_would_change_my_mind may be empty strings. If changed is "
+    "true, reason is one sentence naming what moved you, and what_would_change_my_mind is one "
+    "sentence naming the evidence that would move you off the new verdict."
 )
 
 
@@ -125,6 +156,47 @@ def _unavailable(agent: str, variant_id: str, message: str, sources: list[str]) 
                         rationale=message, sources=sources)
 
 
+def _error(agent: str, variant_id: str, message: str, sources: list[str]) -> AgentFinding:
+    return AgentFinding(agent=agent, variant_id=variant_id, status="error", rationale=message, sources=sources)
+
+
+def reply_text(parsed: dict[str, Any], key: str) -> str:
+    value = parsed.get(key)
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _finding_from_reply(agent: str, variant_id: str, system: str, prompt: str, raw_values: dict[str, Any],
+                        sources: list[str], note: str = "") -> tuple[AgentFinding, dict[str, Any] | None]:
+    """One LLM call. The reply supplies only the verdict and the two texts; numbers come from the tool.
+
+    Returns the finding, and the parsed reply when the finding is ok.
+    """
+    try:
+        parsed = _ask(system, prompt)
+    except LLMConfigError as exc:
+        return _unavailable(agent, variant_id, f"{agent} could not interpret its evidence: {exc}", sources), None
+    except Exception as exc:  # noqa: BLE001 - one agent failing must not take down the panel
+        return _error(agent, variant_id,
+                      f"{agent} could not get a readable verdict from the model ({type(exc).__name__}: {exc}).",
+                      sources), None
+
+    verdict = reply_text(parsed, "verdict").lower()
+    rationale = reply_text(parsed, "rationale")
+    change = reply_text(parsed, "what_would_change_my_mind")
+    if verdict not in VERDICTS or not rationale or not change:
+        return _error(agent, variant_id,
+                      f"{agent} got a reply without a usable verdict, rationale and what_would_change_my_mind, "
+                      "so no verdict is recorded.", sources), None
+    if mentions_clinvar(rationale) or mentions_clinvar(change):
+        return _error(agent, variant_id,
+                      f"{agent} got a reply that cites ClinVar, which is not an input here, so no verdict is "
+                      "recorded.", sources), None
+    finding = AgentFinding(agent=agent, variant_id=variant_id, status="ok", verdict=verdict,
+                           raw_values=copy.deepcopy(raw_values), rationale=f"{rationale}{note}",
+                           what_would_change_my_mind=change, sources=sources)
+    return finding, parsed
+
+
 def interpret(agent: str, variant_id: str, result: ToolResult, section: str, question: str) -> AgentFinding:
     """Read one tool result against the calibration reference and return a finding."""
     sources = list(result.sources)
@@ -142,26 +214,34 @@ def interpret(agent: str, variant_id: str, result: ToolResult, section: str, que
         "Give your verdict on whether this variant disrupts the gene's function, judging from your "
         "evidence alone."
     )
-    try:
-        parsed = _ask(SYSTEM, prompt)
-    except LLMConfigError as exc:
-        return _unavailable(agent, variant_id, f"{agent} could not interpret its evidence: {exc}", sources)
-    except Exception as exc:  # noqa: BLE001 - one agent failing must not take down the panel
-        return _unavailable(agent, variant_id,
-                            f"{agent} reached the model but could not read a verdict from the reply "
-                            f"({type(exc).__name__}: {exc}).", sources)
+    note = " No calibration reference was available for this run." if reference is None else ""
+    return _finding_from_reply(agent, variant_id, SYSTEM, prompt, result.values, sources, note)[0]
 
-    verdict = str(parsed.get("verdict", "")).strip().lower()
-    rationale = str(parsed.get("rationale", "")).strip()
-    if verdict not in VERDICTS or not rationale:
-        return _unavailable(agent, variant_id,
-                            f"{agent} got a reply that was not a usable verdict and rationale, so no "
-                            "verdict is recorded.", sources)
-    if reference is None:
-        rationale = f"{rationale} No calibration reference was available for this run."
-    return AgentFinding(agent=agent, variant_id=variant_id, status="ok",
-                        verdict=verdict, raw_values=dict(result.values),
-                        rationale=rationale, sources=sources)
+
+def interpret_combined(agent: str, variant_id: str,
+                       results: list[ToolResult]) -> tuple[AgentFinding, dict[str, Any] | None]:
+    """One LLM call over every ok tool result, for the single-agent baseline.
+
+    Returns the finding and, when it is ok, the parsed reply, which also holds the report fields.
+    """
+    ok = [result for result in results if result.status == "ok"]
+    sources = list(dict.fromkeys(source for result in ok for source in result.sources))
+    if not ok:
+        raise ValueError("interpret_combined needs at least one ok tool result")
+    blocks = [
+        f"{result.tool} tool:\n{result.message}\nValues: {json.dumps(result.values, default=str)}\n"
+        f"Calibration reference:\n{_reference_text(calibration_reference(result.tool))}"
+        for result in ok
+    ]
+    gaps = "; ".join(f"{result.tool} is {result.status}" for result in results if result.status != "ok")
+    prompt = (
+        f"Variant: {variant_id}\n\n" + "\n\n".join(blocks) + "\n\n"
+        + (f"Evidence with no result: {gaps}.\n\n" if gaps else "")
+        + "Give your verdict and your call on whether this variant disrupts the gene's function, judging "
+        "from all of this evidence together."
+    )
+    raw_values = {result.tool: result.values for result in ok}
+    return _finding_from_reply(agent, variant_id, COMBINED_SYSTEM, prompt, raw_values, sources)
 
 
 def rebut(agent: str, own: AgentFinding, others: list[AgentFinding]) -> AgentFinding:
@@ -170,7 +250,9 @@ def rebut(agent: str, own: AgentFinding, others: list[AgentFinding]) -> AgentFin
         return own.model_copy()
 
     summary = "\n".join(
-        f"- {o.agent}: {o.verdict or o.status} — {o.rationale}" for o in others
+        f"- {o.agent}: {o.verdict or o.status} — {o.rationale}"
+        + (f" What would change their mind: {o.what_would_change_my_mind}" if o.what_would_change_my_mind else "")
+        for o in others
     ) or "- no other findings were available"
     prompt = (
         f"Variant: {own.variant_id}\n\n"
@@ -185,9 +267,11 @@ def rebut(agent: str, own: AgentFinding, others: list[AgentFinding]) -> AgentFin
     except Exception:  # noqa: BLE001 - a failed rebuttal leaves the first verdict standing
         return own.model_copy()
 
-    verdict = str(parsed.get("verdict", "")).strip().lower()
-    reason = str(parsed.get("reason", "")).strip()
-    changed = bool(parsed.get("changed")) and verdict in VERDICTS and verdict != own.verdict
-    if not changed or not reason:
+    verdict = reply_text(parsed, "verdict").lower()
+    reason = reply_text(parsed, "reason")
+    change = reply_text(parsed, "what_would_change_my_mind")
+    changed = parsed.get("changed") is True and verdict in VERDICTS and verdict != own.verdict
+    # A revision needs its reason and a fresh what_would_change_my_mind, neither citing ClinVar.
+    if not changed or not reason or not change or mentions_clinvar(reason) or mentions_clinvar(change):
         return own.model_copy()
-    return own.model_copy(update={"verdict": verdict, "revision_reason": reason})
+    return own.model_copy(update={"verdict": verdict, "revision_reason": reason, "what_would_change_my_mind": change})

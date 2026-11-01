@@ -21,6 +21,7 @@ unresolved with the reason named. It never invents a call.
 from __future__ import annotations
 
 import json
+import math
 
 from vus_panel.agents._common import ACMG_VUS_RULE, PATIENT_UNRESOLVED_TEXT
 from vus_panel.llm import LLMConfigError, get_client, get_model
@@ -79,9 +80,10 @@ def _findings_text(findings: list[AgentFinding]) -> str:
             lines.append(f"- {f.agent}: no result ({f.status}). {f.rationale}")
             continue
         revised = f" Revised in rebuttal: {f.revision_reason}" if f.revision_reason else ""
+        change = f" What would change its mind: {f.what_would_change_my_mind}" if f.what_would_change_my_mind else ""
         lines.append(
             f"- {f.agent}: {f.verdict}. {f.rationale}"
-            f" Values: {json.dumps(f.raw_values, default=str)}.{revised}"
+            f" Values: {json.dumps(f.raw_values, default=str)}.{change}{revised}"
         )
     return "\n".join(lines)
 
@@ -234,7 +236,8 @@ def _from_reply(
         return None  # the contract needs at least one, and the chair must not invent one
 
     confidence = parsed.get("confidence")
-    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
+    # json.loads accepts NaN and Infinity, which would otherwise clamp to full confidence.
+    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not math.isfinite(confidence):
         return None
     confidence = max(0.0, min(1.0, float(confidence)))
 

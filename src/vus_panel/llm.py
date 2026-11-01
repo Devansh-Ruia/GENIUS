@@ -1,7 +1,7 @@
 """Anthropic client access.
 
 The model name always comes from ANTHROPIC_MODEL. Nothing in this package
-names a model. Nothing calls the LLM yet; agents will use these helpers.
+names a model. The agents, the chair and the single-agent baseline call these helpers.
 """
 
 from __future__ import annotations
