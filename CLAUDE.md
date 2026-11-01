@@ -23,6 +23,8 @@ uv venv --python 3.11 && uv pip install -e ".[dev]"
 .venv/Scripts/python -m vus_panel.eval.pilot run --selection data/splits/pilot20.json
 .venv/Scripts/python -m vus_panel.eval.score_split run --split calibration   # or test; resumes, needs EVO2_BACKEND_URL
 .venv/Scripts/python -m vus_panel.eval.score_split status
+.venv/Scripts/python -m vus_panel.eval.evo2_alone          # needs EVO2_SCORES_DIR; writes runs/evo2_alone-<UTC>/
+.venv/Scripts/python -m vus_panel.eval.logistic_baseline   # needs EVO2_SCORES_DIR and the data/cache/ TSVs
 ```
 
 No linter, formatter or type checker is configured. `python -m vus_panel.scoring.service materialize|serve` downloads a 13.7 GB checkpoint and needs a CUDA Evo 2 environment. It runs only on the GPU instance (docs/findlay-evo2-pilot.md), never locally or in tests.
@@ -44,6 +46,7 @@ No linter, formatter or type checker is configured. `python -m vus_panel.scoring
   - `run_eval.py`: refuses mock records, ClinVar mentions in test-split findings, and partial test sets unless `--allow-partial` is given. Writes `runs/<id>/`.
   - `pilot*.py` and `findlay_validation.py`: the frozen Evo 2 timing pilot (docs/findlay-evo2-pilot.md).
   - `score_split.py`: scores every ID in `calibration.txt` or `test.txt` once, with a lock file and atomic writes so a killed run resumes.
+  - `evo2_alone.py` and `logistic_baseline.py`: test-split baselines that build PanelReports from the tools and score them through `run_eval` unchanged, via `_baseline.evaluate`, which also keeps `reports.json` and `baseline.json` in the run folder. Evo 2 alone maps minus delta to its rank, so it's `calibrated: false`. The logistic model is fit on calibration labels only, so it's `calibrated: true`.
 - **`web/index.html`**: one static page, vanilla JS and inline SVG, served by `GET /`. Report text enters the DOM only through `textContent`, `setAttribute` or `createElementNS`; `tests/test_api.py` greps the page for HTML sinks.
 
 ## Rules the tests enforce

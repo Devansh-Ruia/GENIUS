@@ -33,7 +33,7 @@ class Site:
     pos: int
     cls: str
     delta: float
-    phylop: float = 0.0
+    phylop: float | None = 0.0  # None: no conservation row, so that tool is unavailable here
     gnomad: tuple | None = None  # None: absent; ("obs", ac, an, af); ("ac0",); ("nocall",)
 
 
@@ -67,7 +67,8 @@ def write_world(tmp_path, monkeypatch, cal, test, *, errors=(), workbook_classes
     sites = [*cal, *test]
     cons = conservation.cache_path("GRCh37")
     cons.parent.mkdir(parents=True, exist_ok=True)
-    cons.write_text("chrom\tpos\tscore\n" + "".join(f"17\t{s.pos}\t{s.phylop}\n" for s in sites), encoding="utf-8")
+    cons.write_text("chrom\tpos\tscore\n" + "".join(f"17\t{s.pos}\t{s.phylop}\n" for s in sites if s.phylop is not None),
+                    encoding="utf-8")
     low, high = min(s.pos for s in sites) - 1, max(s.pos for s in sites) + 1
     rows = [f"17\t{low}\tA\tT\t1\t1000\t0.001\n", f"17\t{high}\tA\tT\t1\t1000\t0.001\n"]  # region bounds only
     for s in sites:
