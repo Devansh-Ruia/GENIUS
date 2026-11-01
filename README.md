@@ -117,7 +117,7 @@ data/fixtures/            mock PanelReports for UI work only
 data/reference/           small tracked reference files, each listed with its sha256 in MANIFEST.json
 runs/                     run outputs with config, seed, git commit, timestamp (not committed)
 tests/
-.claude/agents/           Claude Code subagents: evidence-models and orchestration-eval (d), evidence-data (a), frontend (m), the checker, and maker
+.claude/agents/           Claude Code subagents: evidence-models and orchestration-eval (d), evidence-data (a), demo-pitch (k), frontend (m), the checker, and maker
 .claude/hooks/            the checker's Bash guard
 ```
 
@@ -147,7 +147,7 @@ Tools return a `ToolResult` with the same rule: no values unless status is `"ok"
 | --- | --- | --- | --- |
 | d | Devansh | Evo 2/SAE scoring service, Findlay loader and splits, orchestrator, `chair.py`, `api.py`, single-agent baseline, Evo 2-alone baseline, eval | evidence-models, orchestration-eval |
 | a | Teammate A | phyloP and gnomAD caches for the BRCA1 region in GRCh37, with a five-position hand spot-check | evidence-data |
-| k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script, a source for the "one in five" claim | none (no code subagent) |
+| k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script, a source for the "one in five" claim | demo-pitch (owns `docs/demo/`, no code) |
 | m | Teammate M | Output screen against fixtures, report card renamed for tumor boards, second-hit input field | frontend (owns `web/` only) |
 
 Merge rule: PR into main, and run the checker subagent on the diff before merging.
