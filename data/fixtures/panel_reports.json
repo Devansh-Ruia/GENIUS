@@ -54,7 +54,7 @@
     "calibrated": false,
     "driving_agents": ["evo2"],
     "conflicts": [],
-    "what_would_settle_it": "[MOCK] SAE features and a functional assay result for this exact variant.",
+    "what_would_settle_it": "[MOCK] A functional assay result for this exact variant.",
     "counselor_summary": "[MOCK] Low confidence, uncalibrated mock call. Placeholder text for UI work only.",
     "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
     "findings_initial": [

@@ -97,8 +97,14 @@ def test_sample_ids_are_not_real_split_variants(fixtures):
 
 
 def test_every_sample_report_shows_sae_evidence(fixtures):
-    """The sample set exists to show all four agent cards filled in; real reports keep SAE unavailable."""
+    """Every sample report carries an SAE finding with a mock value; real reports keep SAE unavailable."""
     for r in fixtures:
-        for f in [*r.findings_initial, *r.findings_after_rebuttal]:
-            if f.agent == "sae":
-                assert f.status == "ok" and "feature_shift" in f.raw_values, r.variant_id
+        for stage in (r.findings_initial, r.findings_after_rebuttal):
+            sae = [f for f in stage if f.agent == "sae"]
+            assert len(sae) == 1, r.variant_id
+            assert sae[0].status == "ok" and "feature_shift" in sae[0].raw_values, r.variant_id
+
+
+def test_samples_keep_a_finding_without_evidence(fixtures):
+    """The sample set still shows what a card without evidence looks like."""
+    assert any(f.status != "ok" for r in fixtures for f in r.findings_after_rebuttal)
