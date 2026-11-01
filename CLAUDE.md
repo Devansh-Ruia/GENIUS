@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A hackathon repo for a multi-agent panel that reviews BRCA1 single-nucleotide variants of uncertain significance. Four evidence agents (evo2, sae, conservation, population) each see one evidence type, revise once in a rebuttal round, and a chair returns a `PanelReport`. The answer key is the Findlay et al. 2018 saturation genome editing table. Most agents are still stubs that report `"unavailable"` and never a made-up value, so `POST /review` returns `call: "unresolved"`. README.md holds the contracts, eval plan and branch ownership.
+A hackathon repo for a multi-agent panel that reviews BRCA1 single-nucleotide variants of uncertain significance. Four evidence agents (evo2, sae, conservation, population) each see one evidence type, revise once in a rebuttal round, and a chair returns a `PanelReport`. The answer key is the Findlay et al. 2018 saturation genome editing table. The evidence agents, the chair and the single-agent baseline call the LLM through `llm.py`. With no `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`, or no tool data, every finding is `"unavailable"`, never a made-up value, and the chair returns `call: "unresolved"`. The sae tool is still a stub that always reports unavailable. README.md holds the contracts, eval plan and branch ownership.
 
 ## Commands
 
@@ -21,34 +21,40 @@ uv venv --python 3.11 && uv pip install -e ".[dev]"
 .venv/Scripts/python -m vus_panel.eval.run_eval --reports R.json --system panel [--allow-partial]
 .venv/Scripts/python -m vus_panel.eval.pilot prepare [--download]   # --download fetches the workbook and NC_000017.10
 .venv/Scripts/python -m vus_panel.eval.pilot run --selection data/splits/pilot20.json
+.venv/Scripts/python -m vus_panel.eval.score_split run --split calibration   # or test; resumes, needs EVO2_BACKEND_URL
+.venv/Scripts/python -m vus_panel.eval.score_split status
 ```
 
 No linter, formatter or type checker is configured. `python -m vus_panel.scoring.service materialize|serve` downloads a 13.7 GB checkpoint and needs a CUDA Evo 2 environment. It runs only on the GPU instance (docs/findlay-evo2-pilot.md), never locally or in tests.
 
+`scripts/` (branch a) builds the local caches. `fetch_phylop.py` and `fetch_gnomad.py` download into `data/cache/`, then `build_tool_caches.py` writes the build-tagged TSVs the conservation and population tools read, `calibration_refs.py` writes `data/cache/calibration_refs.json`, and `check_caches.py` checks reference bases and coverage. Run them as `python scripts/<name>.py`, because they import `cache_common` as a sibling module. They need pandas and requests, which `pyproject.toml` doesn't list.
+
 ## Architecture
 
 - **Flow**: `api.py` `POST /review` -> `orchestrator.review` -> each evidence agent's `run(variant)` -> each agent's `rebut(own, others)` -> `agents/chair.decide` -> `PanelReport`. `agents/single_agent.review` is the baseline: all four tools, no rebuttal.
-- **Contracts** are in `schemas.py` (`Variant`, `AgentFinding`, `PanelReport`, `RunRecord`, `ToolResult`). Every model is frozen with `extra="forbid"`, and the validators carry real rules: an ok finding keeps its `raw_values` and `sources` through rebuttal, a changed or withdrawn verdict needs `revision_reason`, a resolved call needs a confidence. Read them before building reports by hand.
+- **Contracts** are in `schemas.py` (`Variant`, `AgentFinding`, `PanelReport`, `RunRecord`, `ToolResult`). Every model is frozen with `extra="forbid"`, and the validators carry real rules: an ok finding keeps its `raw_values` and `sources` through rebuttal, a changed or withdrawn verdict needs `revision_reason`, a resolved call needs a confidence, and `what_would_change_my_mind` is ok-only and may never mention ClinVar. Read them before building reports by hand. `schemas.mentions_clinvar` uses the same patterns as `run_eval`'s ClinVar refusal, and a test keeps them in step.
+- **LLM layer**: the evidence agents and `single_agent` go through `agents/_interpret.py`; the chair has its own prompt in `chair.py`. Numbers and sources always come from the tool, and the model supplies only the verdict, rationale and `what_would_change_my_mind`. Agents read their number against `data/cache/calibration_refs.json` (calibration split only), never a threshold the model invents. Missing LLM settings give `"unavailable"`, an unusable or ClinVar-citing reply gives `"error"`, a failed rebuttal keeps the first verdict, and the chair falls back to `"unresolved"` with the reason named. `tests/test_agents_llm.py` swaps in a fake client by monkeypatching `_interpret.get_client` and `chair.get_client`.
 - **Isolation**: each tool in `tools/` takes a `Variant` and returns a `ToolResult`. Each evidence agent imports only its own tool. `rebut` and the chair receive findings only, never tools or the variant.
 - **Answer key**: `Variant.without_answer_key()` strips the Findlay fields in the orchestrator and single_agent. On top of that, every agent `run()`, every tool entry point and `ScoreRequest.from_variant` call `reject_answer_key`, which raises `AnswerKeyError`. That error must propagate; the orchestrator and single_agent re-raise it ahead of their broad `except`. `POST /review` returns 422 for a body containing either Findlay field.
 - **Orchestrator errors**: other agent and tool exceptions, and findings that break the rebuttal rules, become status `"error"` findings. The orchestrator raises if the chair returns findings that differ from the ones it was given.
-- **`scoring/`**: `contracts.py` is the frozen wire protocol. `client.py` is CPU-only and is what `tools/evo2.py` uses through `EVO2_BACKEND_URL`. `backend.py` and `service.py` are the GPU side and are imported only by the service; a test checks the client's import closure never reaches them.
+- **`scoring/`**: `contracts.py` is the frozen wire protocol. `client.py` is CPU-only and is what `tools/evo2.py` uses through `EVO2_BACKEND_URL`. `backend.py` and `service.py` are the GPU side and are imported only by the service; a test checks the client's import closure never reaches them. Before calling the backend, `tools/evo2.py` looks for a stored result under `EVO2_SCORES_DIR`: a pilot or `score_split` run directory, or a folder of them. It reads only `outcomes.jsonl`, `run_record.json` and the calibration ID list, so no Findlay label is read.
 - **`eval/`**:
   - `split.py`: the Findlay loader and the seed-0 split, stratified by class, ordered by sha256, 0.2 calibration.
   - `metrics.py`: AUROC always reported with coverage, LOF positive, ddof=1.
   - `run_eval.py`: refuses mock records, ClinVar mentions in test-split findings, and partial test sets unless `--allow-partial` is given. Writes `runs/<id>/`.
   - `pilot*.py` and `findlay_validation.py`: the frozen Evo 2 timing pilot (docs/findlay-evo2-pilot.md).
+  - `score_split.py`: scores every ID in `calibration.txt` or `test.txt` once, with a lock file and atomic writes so a killed run resumes.
 - **`web/index.html`**: one static page, vanilla JS and inline SVG, served by `GET /`. Report text enters the DOM only through `textContent`, `setAttribute` or `createElementNS`; `tests/test_api.py` greps the page for HTML sinks.
 
 ## Rules the tests enforce
 
-- **Test environment** (`tests/conftest.py`, autouse): every socket connect and DNS lookup is blocked, the `ANTHROPIC_*`, `EVO2_BACKEND_URL` and `VUS_PANEL_*` variables are cleared, and `config.data_dir()` and `runs_dir()` point at tmp. A test that needs real repo files has to use `config.REPO_ROOT`.
+- **Test environment** (`tests/conftest.py`, autouse): every socket connect and DNS lookup is blocked, the `ANTHROPIC_*`, `EVO2_BACKEND_URL`, `EVO2_SCORES_DIR` and `VUS_PANEL_*` variables are cleared, and `config.data_dir()` and `runs_dir()` point at tmp. A test that needs real repo files has to use `config.REPO_ROOT`.
 - **Isolation** (`tests/test_isolation.py`):
   - follows each agent's transitive `vus_panel` imports against an allowlist and spies on tools at runtime
   - requires an owner for every module under `tools/` (`PRIVATE_TOOL_OWNERS`)
   - bans dynamic access anywhere in an agent's import closure: `getattr`/`vars` on imported modules, any `.modules` attribute, `exec`, `eval`, `compile`, `__builtins__`, `__import__`, and the `importlib`, `runpy`, `pkgutil` and `builtins` modules
 
-  That closure includes `schemas.py`, `config.py` and `scoring/client.py`, so keep these constructs out of shared modules too.
+  That closure includes `schemas.py`, `config.py`, `llm.py`, `agents/_common.py`, `agents/_interpret.py` and `scoring/client.py`, so keep these constructs out of shared modules too.
 - **Model strings** (`tests/test_llm.py`): `src/` must not match `claude-|opus|sonnet|haiku|fable`, case-insensitive. Get the model with `vus_panel.llm.get_model()`, which reads `ANTHROPIC_MODEL`.
 - **Reference data** (`tests/test_reference_data.py`): every file in `data/reference/` has a `MANIFEST.json` entry whose sha256 and size match, is under 50 MiB, and has a non-empty source and license.
 - **Fixtures**: `data/fixtures/` holds at most five reports, all `mock: true`, for UI work only. The page shows a MOCK DATA banner for them, and `run_eval` refuses them.
