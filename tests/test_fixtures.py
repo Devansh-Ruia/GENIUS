@@ -61,15 +61,36 @@ def test_loader_rejects_non_mock_and_too_many(tmp_path):
         load_fixtures(path)
 
 
+# Keys each real tool returns (tools/*.py), and the one the page displays on the agent card.
+REAL_KEYS = {
+    "evo2": {"delta", "delta_mean", "ref_total", "alt_total", "next_token_terms", "context_length",
+             "score_source", "calibration_percentile", "n_calibration_reference"},
+    "conservation": {"score", "position_percentile_in_region", "region_min", "region_max", "scored_per"},
+    "population": {"observation", "ac", "an", "af", "cached_variants_in_region"},
+    "sae": {"feature_shift"},  # planned key, documented in tools/sae.py
+}
+DISPLAYED = {"evo2": "delta", "conservation": "score", "population": "observation", "sae": "feature_shift"}
+
+
 def test_sample_findings_carry_mock_values_shaped_like_real_ones(fixtures):
     """Every agent in a sample report looks alike on screen: a mock value and a [MOCK] explanation."""
     for r in fixtures:
         for f in [*r.findings_initial, *r.findings_after_rebuttal]:
-            assert f.rationale.startswith("[MOCK]"), (r.variant_id, f.agent)
+            where = (r.variant_id, f.agent)
+            assert f.rationale.startswith("[MOCK]"), where
+            assert f.revision_reason is None or f.revision_reason.startswith("[MOCK]"), where
             if f.status != "ok":
-                assert not f.raw_values
+                assert not f.raw_values, where
                 continue
-            assert f.raw_values and f.sources == ["mock"], (r.variant_id, f.agent)
-            if f.agent == "sae":
-                assert set(f.raw_values) == {"feature_shift"}
-                assert isinstance(f.raw_values["feature_shift"], float)
+            assert f.sources == ["mock"], where
+            assert set(f.raw_values) <= REAL_KEYS[f.agent], where
+            assert DISPLAYED[f.agent] in f.raw_values, where
+
+
+def test_sample_ids_are_not_real_split_variants(fixtures):
+    """Mock numbers must never sit on a real Findlay variant that the panel is scored on."""
+    splits = config.REPO_ROOT / "data" / "splits"
+    real = set((splits / "calibration.txt").read_text(encoding="ascii").split())
+    real |= set((splits / "test.txt").read_text(encoding="ascii").split())
+    real |= set(json.loads((splits / "pilot20.json").read_text(encoding="utf-8"))["variant_ids"])
+    assert not {r.variant_id for r in fixtures} & real

@@ -703,6 +703,9 @@ function renderVerdict() {
   box.append(body);
   host.append(box);
 
+  // Sample reports carry mock values, so they get no ACMG codes and no links to real databases.
+  if (isMock(report)) return;
+
   const codes = acmgCodes(report);
   const codeRow = el("div", { class: "codes" });
   if (codes.length) {

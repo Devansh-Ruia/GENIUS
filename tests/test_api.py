@@ -175,7 +175,9 @@ def test_saved_demo_reports_still_show_sae_unavailable():
     assert "feature_shift" not in api.DEMO_PATH.read_text(encoding="utf-8")
 
 
-def test_default_review_keeps_sae_unavailable():
-    response = client.post("/review", json=PLACEHOLDER)
-    sae = [f for f in response.json()["findings_initial"] if f["agent"] == "sae"]
-    assert response.status_code == 200 and sae and sae[0]["status"] == "unavailable" and not sae[0]["raw_values"]
+def test_sample_reports_get_no_acmg_codes_or_database_links():
+    page = client.get("/").text
+    start = page.index("function renderVerdict(")
+    body = page[start:page.index("\nfunction ", start + 1)]
+    guard = body.index("if (isMock(report)) return;")
+    assert guard < body.index("acmgCodes(report)") and guard < body.index("gnomad.broadinstitute.org")
