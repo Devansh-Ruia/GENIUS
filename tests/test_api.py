@@ -165,35 +165,68 @@ def _code(page):
     return "\n".join(line for line in page.splitlines() if not line.strip().startswith("//"))
 
 
+GUARDED_CALL = ('    if (agent === "sae" && SAE_PREVIEW) {\n'
+                '      host.append(saePreviewCard(info));\n'
+                '      continue;\n'
+                '    }\n')
+
+
 def test_sae_preview_is_off_unless_the_url_asks_for_it():
     page = _code(client.get("/").text)
     assert 'const SAE_PREVIEW = new URLSearchParams(window.location.search).get("preview") === "sae";' in page
-    # Defined once and read once, by the guard in renderEvidence; nothing else can switch it on.
-    assert len(re.findall(r"\bSAE_PREVIEW\b", page)) == 2
-    assert 'if (agent === "sae" && SAE_PREVIEW) {' in _function_body(page, "renderEvidence")
+    # Read in exactly two places: the page banner and the guard in renderEvidence. Nothing else can switch it on.
+    assert len(re.findall(r"\bSAE_PREVIEW\b", page)) == 3
+    assert 'document.getElementById("preview-banner").hidden = !SAE_PREVIEW;' in page
+    assert GUARDED_CALL in _function_body(page, "renderEvidence")
 
 
-def test_synthetic_sae_features_are_fixed_and_read_only_by_the_preview_card():
+def test_the_preview_card_has_one_call_site_behind_the_flag():
+    """A second call path, such as a fallback when the SAE finding is missing, must fail here."""
+    page = _code(client.get("/").text)
+    assert len(re.findall(r"saePreviewCard\(", page)) == 2  # the definition and the guarded call
+    assert page.count(GUARDED_CALL) == 1
+
+
+def test_synthetic_sae_features_are_fixed_generic_and_read_only_by_the_preview_card():
     page = _code(client.get("/").text)
     uses = [m.start() for m in re.finditer(r"SYNTHETIC_SAE_PREVIEW_FEATURES", page)]
     assert len(uses) == 2  # the definition, and the loop in saePreviewCard
     assert "SYNTHETIC_SAE_PREVIEW_FEATURES" in _function_body(page, "saePreviewCard")
     fixture = page[uses[0]:page.index("]);", uses[0])]
-    assert fixture.count("name:") == 3 and "Object.freeze" in fixture
+    assert fixture.count("Object.freeze({") == 3  # every entry frozen, not only the array
+    entries = re.findall(r"Object\.freeze\(\{([^}]*)\}\)", fixture)
+    assert len(entries) == 3
+    for entry in entries:
+        assert set(re.findall(r"(\w+)\s*:", entry)) == {"name", "shift"}  # no source, citation or URL
+        assert re.fullmatch(r'Example feature [A-Z]', re.search(r'name:\s*"([^"]*)"', entry).group(1))
     for name in ("renderMatrix", "renderVerdict", "renderCard", "renderTracks", "setReports"):
         body = _function_body(page, name)
         assert "SAE_PREVIEW" not in body and "saePreviewCard" not in body, name
 
 
-def test_preview_card_carries_its_caption_and_never_reads_a_finding():
+def test_preview_card_appends_its_caption_and_never_reads_a_finding():
     page = client.get("/").text
     assert 'const SAE_PREVIEW_CAPTION = "Prototype layout. Example values, not computed.";' in page
     body = _function_body(page, "saePreviewCard")
-    assert "SAE_PREVIEW_CAPTION" in body
+    assert 'card.append(el("p", { class: "preview-caption" }, SAE_PREVIEW_CAPTION));' in body
+    assert "(prototype preview)" in body
     assert "finding" not in body and "report" not in body and "fetch" not in body
+    style = page[page.index("<style"):page.index("</style>")]
+    for rule in re.findall(r"[^{}]*\.preview-caption[^{}]*\{[^}]*\}", style):
+        assert not re.search(r"display:\s*none|visibility:\s*hidden|opacity:\s*0", rule), rule
 
 
-def test_default_mode_keeps_sae_unavailable_and_the_sample_notices():
+def test_preview_mode_shows_a_page_notice_and_stays_off_paper():
+    page = client.get("/").text
+    banner = re.search(r'<div id="preview-banner"[^>]*>([^<]*)</div>', page)
+    assert banner and " hidden>" in banner.group(0)  # hidden until the flag is read
+    assert "Prototype preview" in banner.group(1) and "not computed" in banner.group(1)
+    print_css = page[page.index("@media print"):page.index("@media print") + 4000]
+    assert ".preview-banner, .preview-card { display: none !important; }" in print_css
+    assert '"agent-card preview-card is-none"' in _function_body(page, "saePreviewCard")
+
+
+def test_default_mode_source_keeps_sae_unavailable_and_the_sample_notices():
     page = client.get("/").text
     evidence = _function_body(page, "renderEvidence")
     assert "STATUS_LABEL[finding.status]" in evidence  # the unavailable path is unchanged
