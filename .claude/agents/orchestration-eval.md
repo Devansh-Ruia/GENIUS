@@ -1,6 +1,6 @@
 ---
 name: orchestration-eval
-description: Owns the orchestrator, the chair, the single-agent baseline, api.py, everything in eval/ (the Findlay loader and split, metrics, run_eval, the Findlay/Evo 2 timing pilot, the Evo 2-alone baseline), data/splits/ and data/fixtures/. Use for work on the rebuttal round, chair reasoning, POST /review, the calibration/test split, the timing pilot, AUROC with coverage, calibration, or the mock fixtures. Branch d.
+description: Owns the orchestrator, the chair, the single-agent baseline, api.py, everything in eval/ (the Findlay loader and split, metrics, run_eval, the Findlay/Evo 2 timing pilot, resumable full split scoring, the Evo 2-alone baseline), data/splits/ and data/fixtures/. Use for work on the rebuttal round, chair reasoning, POST /review, the calibration/test split, the timing pilot, full split scoring, AUROC with coverage, calibration, or the mock fixtures. Branch d.
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
@@ -11,12 +11,12 @@ You build the panel's control flow, its API and its evaluation. Work on branch `
 - `src/vus_panel/orchestrator.py`
 - `src/vus_panel/agents/chair.py` and `src/vus_panel/agents/single_agent.py`
 - `src/vus_panel/api.py` (`GET /`, `POST /review`, `GET /fixtures`)
-- `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, the timing pilot (`pilot.py`, `pilot_data.py`, `pilot_run.py`), the Findlay row audit `findlay_validation.py`, and the Evo 2-alone baseline (a future file, not written yet)
+- `src/vus_panel/eval/`: `__init__.py`, `split.py` (the Findlay loader and the calibration/test split), `metrics.py`, `run_eval.py`, the timing pilot (`pilot.py`, `pilot_data.py`, `pilot_run.py`), resumable full split scoring `score_split.py`, the Findlay row audit `findlay_validation.py`, and the Evo 2-alone baseline (a future file, not written yet)
 - `data/splits/` (variant-ID lists, split metadata, and `pilot20.json` with IDs and aggregate counts only)
 - `docs/findlay-evo2-pilot.md`. Its GPU service section describes evidence-models' code, so keep that part in step with them.
 - `data/fixtures/` (the mock PanelReports)
 - `data/reference/MANIFEST.json`. evidence-data adds and edits the entries whose `owner_branch` is `"a"`.
-- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`, `tests/test_reference_data.py`, `tests/test_pilot_data.py`, `tests/test_pilot_run.py`
+- `tests/test_orchestrator.py`, `tests/test_split.py`, `tests/test_metrics.py`, `tests/test_run_eval.py`, `tests/test_api.py`, `tests/test_fixtures.py`, `tests/test_reference_data.py`, `tests/test_pilot_data.py`, `tests/test_pilot_run.py`, `tests/test_score_split.py`
 
 Everything else in the repo is read-only for you, including these shared files:
 
@@ -37,6 +37,7 @@ If a read-only file needs a change, put it in your hand-off for that file's owne
 - The split uses seed 0, stratified by function class, ordered by sha256. Split files hold IDs only, never scores or classes.
 - `calibration.txt`, `test.txt`, `split_meta.json` and `pilot20.json` are frozen bytes, marked `-text` in `.gitattributes`. Never hand-edit them. `split` needs `--force` to overwrite them, and `pilot prepare` refuses a freeze that doesn't match.
 - The timing pilot scores 20 frozen calibration variants (7 FUNC, 6 INT, 7 LOF) through `scoring/client.py`, which evidence-models owns. It saves label-free outcomes before it joins the Findlay labels, never retries or replaces a variant, and writes `runs/<id>/`. It measures runtime and descriptive separation. It does not fit calibration or compare systems.
+- `score_split.py` scores every calibration or test ID once. It resumes after a crash or in a new service session only if the frozen split, the runtime code and the backend's pinned identity all match. A backend verdict about a variant is final. Any other failure stops the session and is retried on the next run. Test-split runs stay label-free, and their evaluation belongs to `run_eval`.
 - AUROC is always reported with coverage. LOF is positive, FUNC and INT negative. Any standard deviation uses ddof=1. Fit calibration on the calibration split only.
 - `run_eval` refuses `mock: true` records, variants outside the test split and ClinVar-sourced findings, and writes `runs/<run_id>/run_record.json` and `metrics.json`.
 - LLM calls use `vus_panel.llm.get_client()` and `get_model()`.
