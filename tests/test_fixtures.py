@@ -94,3 +94,11 @@ def test_sample_ids_are_not_real_split_variants(fixtures):
     real |= set((splits / "test.txt").read_text(encoding="ascii").split())
     real |= set(json.loads((splits / "pilot20.json").read_text(encoding="utf-8"))["variant_ids"])
     assert not {r.variant_id for r in fixtures} & real
+
+
+def test_every_sample_report_shows_sae_evidence(fixtures):
+    """The sample set exists to show all four agent cards filled in; real reports keep SAE unavailable."""
+    for r in fixtures:
+        for f in [*r.findings_initial, *r.findings_after_rebuttal]:
+            if f.agent == "sae":
+                assert f.status == "ok" and "feature_shift" in f.raw_values, r.variant_id

@@ -59,13 +59,13 @@
     "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
     "findings_initial": [
       {"agent": "evo2", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {"delta": -27.8, "delta_mean": -0.00339, "calibration_percentile": 14.5}, "rationale": "[MOCK] The change makes the sequence look clearly less natural to the model, lower than most reference variants.", "sources": ["mock"], "revision_reason": null},
-      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {"feature_shift": -0.39}, "rationale": "[MOCK] Model features that are active around this position weaken sharply with the change.", "sources": ["mock"], "revision_reason": null},
       {"agent": "conservation", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {"score": 1.87, "scored_per": "position"}, "rationale": "[MOCK] This base is moderately preserved across species, which does not point clearly either way.", "sources": ["mock"], "revision_reason": null},
       {"agent": "population", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {"observation": "not_observed", "ac": 0, "an": null, "af": null}, "rationale": "[MOCK] Nobody tested carried this change. Absence is weak evidence on its own.", "sources": ["mock"], "revision_reason": null}
     ],
     "findings_after_rebuttal": [
       {"agent": "evo2", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {"delta": -27.8, "delta_mean": -0.00339, "calibration_percentile": 14.5}, "rationale": "[MOCK] The change makes the sequence look clearly less natural to the model, lower than most reference variants.", "sources": ["mock"], "revision_reason": null},
-      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "damaging", "raw_values": {"feature_shift": -0.39}, "rationale": "[MOCK] Model features that are active around this position weaken sharply with the change.", "sources": ["mock"], "revision_reason": null},
       {"agent": "conservation", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {"score": 1.87, "scored_per": "position"}, "rationale": "[MOCK] This base is moderately preserved across species, which does not point clearly either way.", "sources": ["mock"], "revision_reason": null},
       {"agent": "population", "variant_id": "GRCh37-17-41243510-A-C", "status": "ok", "verdict": "uncertain", "raw_values": {"observation": "not_observed", "ac": 0, "an": null, "af": null}, "rationale": "[MOCK] Nobody tested carried this change. Absence is weak evidence on its own.", "sources": ["mock"], "revision_reason": null}
     ],
@@ -83,13 +83,13 @@
     "patient_summary": "[MOCK] Placeholder patient text for UI work only.",
     "findings_initial": [
       {"agent": "evo2", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "damaging", "raw_values": {"delta": -55.1, "delta_mean": -0.00673, "calibration_percentile": 3.9}, "rationale": "[MOCK] The change makes the sequence look clearly less natural to the model, lower than most reference variants.", "sources": ["mock"], "revision_reason": null},
-      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "uncertain", "raw_values": {"feature_shift": -0.16}, "rationale": "[MOCK] Model features around this position shift only slightly with the change.", "sources": ["mock"], "revision_reason": null},
       {"agent": "conservation", "variant_id": "GRCh37-17-41256200-T-G", "status": "error", "verdict": null, "raw_values": {}, "rationale": "[MOCK] cache build mismatch", "sources": [], "revision_reason": null},
       {"agent": "population", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "tolerated", "raw_values": {"observation": "observed", "ac": 2210, "an": 250980, "af": 0.008805}, "rationale": "[MOCK] Enough people not selected for disease carry this change that it is unlikely to be strongly damaging.", "sources": ["mock"], "revision_reason": null}
     ],
     "findings_after_rebuttal": [
       {"agent": "evo2", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "damaging", "raw_values": {"delta": -55.1, "delta_mean": -0.00673, "calibration_percentile": 3.9}, "rationale": "[MOCK] The change makes the sequence look clearly less natural to the model, lower than most reference variants.", "sources": ["mock"], "revision_reason": null},
-      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "unavailable", "verdict": null, "raw_values": {}, "rationale": "[MOCK] backend not configured", "sources": [], "revision_reason": null},
+      {"agent": "sae", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "uncertain", "raw_values": {"feature_shift": -0.16}, "rationale": "[MOCK] Model features around this position shift only slightly with the change.", "sources": ["mock"], "revision_reason": null},
       {"agent": "conservation", "variant_id": "GRCh37-17-41256200-T-G", "status": "error", "verdict": null, "raw_values": {}, "rationale": "[MOCK] cache build mismatch", "sources": [], "revision_reason": null},
       {"agent": "population", "variant_id": "GRCh37-17-41256200-T-G", "status": "ok", "verdict": "tolerated", "raw_values": {"observation": "observed", "ac": 2210, "an": 250980, "af": 0.008805}, "rationale": "[MOCK] Enough people not selected for disease carry this change that it is unlikely to be strongly damaging.", "sources": ["mock"], "revision_reason": null}
     ],
