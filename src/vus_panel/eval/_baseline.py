@@ -85,11 +85,13 @@ def evo2_provenance(results: Sequence[ToolResult]) -> dict[str, Any]:
     for result in results:
         if result.status != "ok":
             continue
-        match = _STORED_RUN.match(result.sources[0]) if result.sources else None
-        if match:
-            runs.add(match.group(1))
-        else:
+        if result.values.get("score_source") != "stored":
             backend += 1
+            continue
+        match = _STORED_RUN.match(result.sources[0]) if result.sources else None
+        if match is None:
+            raise ValueError(f"can't read the stored run name from an evo2 source: {result.sources}")
+        runs.add(match.group(1))
     scores_dir = config.evo2_scores_dir()
     return {
         "evo2_scores_dir": config.display_path(Path(scores_dir)) if scores_dir else None,

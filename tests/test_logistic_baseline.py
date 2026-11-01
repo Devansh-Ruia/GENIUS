@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 
 import numpy as np
 import pytest
 
+from _factories import findlay_row, write_findlay_xlsx
 from test_evo2_alone import CAL_RUN, TEST_RUN, Site, vid, write_splits_and_workbook, write_world
 from vus_panel import config
 from vus_panel.eval import logistic_baseline as lb
@@ -15,6 +17,7 @@ from vus_panel.eval import run_eval
 from vus_panel.eval._baseline import DETAILS_FILE, REPORTS_FILE, evaluate
 from vus_panel.eval.metrics import auroc
 from vus_panel.eval.run_eval import report_probability
+from vus_panel.eval.split import default_findlay_path
 from vus_panel.schemas import ToolResult
 
 
@@ -45,7 +48,7 @@ TEST = sites(6000, [
     (-4.0, 1.5, None, 1, 2),
     (3.0, -2.0, None, 0, 2),
     (0.5, 0.2, ("obs", 18, 1000, 0.018), 0, 1),
-    (-8.0, 2.5, ("nocall",), 1, 0),
+    (-8.0, 2.5, ("ac0",), 1, 0),
 ])
 
 
@@ -88,10 +91,18 @@ def test_separable_classes_are_refused():
 @pytest.mark.parametrize("x, y, message", [
     ([[1.0], [1.0], [1.0]], [0, 1, 0], "constant"),
     ([[0.0], [1.0], [2.0]], [1, 1, 1], "one class"),
+    ([[0.0, 0.0], [1.0, 2.0], [2.0, 4.0], [3.0, 6.0]], [0, 1, 0, 1], "collinear"),
 ])
 def test_degenerate_fits_are_refused(x, y, message):
     with pytest.raises(lb.LogisticFitError, match=message):
         lb.fit_logistic(x, y)
+
+
+def test_a_fit_that_does_not_converge_is_refused():
+    x = [[0.0]] * 10 + [[1.0]] * 10
+    y = [1] * 3 + [0] * 7 + [1] * 8 + [0] * 2
+    with pytest.raises(lb.LogisticFitError, match="no convergence in 2 iterations"):
+        lb.fit_logistic(x, y, max_iterations=2)
 
 
 # Features
@@ -99,11 +110,14 @@ def test_degenerate_fits_are_refused(x, y, message):
 @pytest.mark.parametrize("population_values, present, log_af", [
     ({"observation": "observed", "ac": 12, "an": 1000, "af": 0.012}, 1.0, math.log10(0.012)),
     ({"observation": "observed", "ac": 0, "an": 1000, "af": 0.0}, 0.0, 0.0),
-    ({"observation": "no_call", "ac": None, "an": 0, "af": None}, 0.0, 0.0),
     ({"observation": "not_observed", "ac": 0, "an": None, "af": None}, 0.0, 0.0),
 ])
 def test_gnomad_presence_and_frequency_encoding(population_values, present, log_af):
     assert lb.encode(results(population_values)) == [-3.0, 2.5, present, log_af]
+
+
+def test_a_gnomad_no_call_is_a_missing_feature_not_an_absence():
+    assert lb.encode(results({"observation": "no_call", "ac": None, "an": 0, "af": None})) is None
 
 
 @pytest.mark.parametrize("status", ["unavailable", "error"])
@@ -121,6 +135,19 @@ def test_test_split_labels_cannot_change_the_reports(tmp_path, monkeypatch):
     second, second_details = lb.build_reports()
     assert first == second
     assert first_details["fit"] == second_details["fit"]
+
+
+def test_a_workbook_without_test_rows_gives_the_same_reports(tmp_path, monkeypatch):
+    write_world(tmp_path, monkeypatch, CAL, TEST)
+    full, _ = lb.build_reports()
+    path = default_findlay_path()
+    write_findlay_xlsx(path, [findlay_row(s.cls, s.pos) for s in CAL])
+    meta_path = config.splits_dir() / "split_meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta_path.write_text(json.dumps({**meta, "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}),
+                         encoding="utf-8")
+    calibration_only, _ = lb.build_reports()
+    assert calibration_only == full
 
 
 def test_calibration_labels_drive_the_fit(tmp_path, monkeypatch):
@@ -173,7 +200,24 @@ def test_a_test_variant_without_a_feature_is_unresolved(tmp_path, monkeypatch):
     first = reports[0]
     assert first.call == "unresolved" and first.confidence is None and first.calibrated is False
     assert {f.agent: f.status for f in first.findings_initial}["conservation"] == "unavailable"
-    assert details["test"] == {"n_variants": len(TEST), "scored": len(TEST) - 1, "unresolved": 1}
+    assert details["test"] == {"n_variants": len(TEST), "scored": len(TEST) - 1, "unresolved": 1, "gnomad_no_call": 0}
+
+
+def test_a_test_variant_gnomad_could_not_call_is_unresolved(tmp_path, monkeypatch):
+    test = [Site(s.pos, s.cls, s.delta, s.phylop, ("nocall",) if i == 0 else s.gnomad) for i, s in enumerate(TEST)]
+    write_world(tmp_path, monkeypatch, CAL, test)
+    reports, details = lb.build_reports()
+    assert reports[0].call == "unresolved" and reports[0].confidence is None
+    # Every tool answered; the population finding stays ok with its no_call observation.
+    assert {f.agent: f.raw_values.get("observation") for f in reports[0].findings_initial}["population"] == "no_call"
+    assert details["test"] == {"n_variants": len(TEST), "scored": len(TEST) - 1, "unresolved": 1, "gnomad_no_call": 1}
+
+
+def test_a_calibration_variant_gnomad_could_not_call_stops_the_fit(tmp_path, monkeypatch):
+    cal = [Site(s.pos, s.cls, s.delta, s.phylop, ("nocall",) if i == 0 else s.gnomad) for i, s in enumerate(CAL)]
+    write_world(tmp_path, monkeypatch, cal, TEST)
+    with pytest.raises(lb.LogisticFitError, match="1 calibration variants lack a feature"):
+        lb.build_reports()
 
 
 # End to end through run_eval

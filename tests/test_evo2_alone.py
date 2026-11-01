@@ -17,11 +17,11 @@ from _factories import findlay_row, write_findlay_xlsx
 from test_tools_models import stored_response, write_run
 from vus_panel import config
 from vus_panel.eval import evo2_alone, run_eval
-from vus_panel.eval._baseline import DETAILS_FILE, REPORTS_FILE, evaluate, split_ids
+from vus_panel.eval._baseline import DETAILS_FILE, REPORTS_FILE, evaluate, evo2_provenance, split_ids
 from vus_panel.eval.metrics import auroc
 from vus_panel.eval.run_eval import report_probability
 from vus_panel.eval.split import default_findlay_path
-from vus_panel.schemas import PanelReport
+from vus_panel.schemas import PanelReport, ToolResult
 from vus_panel.tools import conservation, population
 
 CAL_RUN = "20260101T000000Z-calibration-aaaaaaaaaaaa"
@@ -144,6 +144,19 @@ def test_findings_carry_the_tools_numbers_and_sources(tmp_path, monkeypatch):
     assert finding.status == "ok" and finding.verdict == "uncertain"
     assert finding.raw_values["delta"] == TEST[0].delta and finding.raw_values["score_source"] == "stored"
     assert f"run {TEST_RUN};" in finding.sources[0]
+
+
+def test_provenance_reads_score_source_and_refuses_an_unreadable_stored_source():
+    stored = ToolResult(tool="evo2", status="ok", values={"score_source": "stored"}, message="m",
+                        sources=[f"Evo 2 stored result, run {TEST_RUN}; service session s"])
+    backend = ToolResult(tool="evo2", status="ok", values={"score_source": "backend"}, message="m",
+                         sources=["Evo 2 service session s"])
+    missing = ToolResult(tool="evo2", status="unavailable", message="m")
+    assert evo2_provenance([stored, backend, missing]) == {
+        "evo2_scores_dir": None, "evo2_stored_runs": [TEST_RUN], "evo2_backend_scored": 1}
+    reworded = stored.model_copy(update={"sources": ["a stored result from somewhere"]})
+    with pytest.raises(ValueError, match="stored run name"):
+        evo2_provenance([reworded])
 
 
 def test_a_stored_backend_error_is_unresolved_and_lowers_coverage(tmp_path, monkeypatch):

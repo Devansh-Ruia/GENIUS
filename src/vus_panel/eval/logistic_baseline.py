@@ -8,11 +8,13 @@ Features, each read through the repo's own tool, the same way for both splits:
     evo2_delta        evo2 tool: ALT-minus-REF summed log-likelihood delta
     phylop            conservation tool: phyloP 100-way score at the position
     gnomad_present    population tool: 1 if gnomAD observed the variant with AC > 0, else 0.
-                      Absent, no-call and AC = 0 all count as not present.
+                      Absent and AC = 0 count as not present. A no-call site (AN = 0) has an
+                      unknown frequency, so it is a missing feature, not an absence.
     gnomad_log10_af   log10 of the gnomAD allele frequency when present, else 0
 
-Labels come from the Findlay workbook for calibration-split IDs only: LOF is 1,
-FUNC and INT are 0. Test labels are never loaded here; run_eval joins them.
+Labels: the Findlay workbook is parsed whole, but only calibration-split classes
+are kept and used: LOF is 1, FUNC and INT are 0. Test-split classes are dropped
+as the workbook is read and never reach the fit; run_eval joins the test labels.
 
 The fit is plain maximum-likelihood logistic regression by Newton-IRLS on
 features standardized with the calibration mean and sample SD (ddof=1). It
@@ -110,6 +112,8 @@ def fit_logistic(x: Sequence[Sequence[float]] | np.ndarray, y: Sequence[int] | n
     if not (np.isfinite(scale).all() and (scale > 0).all()):
         raise LogisticFitError("a feature is constant on the fitting data")
     design = np.column_stack([np.ones(x.shape[0]), (x - mean) / scale])
+    if np.linalg.matrix_rank(design) < design.shape[1]:
+        raise LogisticFitError("the features are collinear on the fitting data")
     w = np.zeros(design.shape[1])
     for iteration in range(1, max_iterations + 1):
         p = _sigmoid(design @ w)
@@ -129,10 +133,12 @@ def fit_logistic(x: Sequence[Sequence[float]] | np.ndarray, y: Sequence[int] | n
 
 
 def encode(results: Mapping[str, ToolResult]) -> list[float] | None:
-    """The feature vector, or None if any tool has no result."""
+    """The feature vector, or None if any tool has no result or gnomAD could not call the site."""
     if any(result.status != "ok" for result in results.values()):
         return None
     pop = results["population"].values
+    if pop.get("observation") == "no_call":
+        return None
     af = pop.get("af")
     present = pop.get("observation") == "observed" and (pop.get("ac") or 0) > 0 and af is not None and af > 0
     return [
@@ -201,6 +207,7 @@ def build_reports(split_dir: Path | None = None,
         findings, features, results = gather(vid)
         all_results.append(results["evo2"])
         status["scored" if features is not None else "unresolved"] += 1
+        status["gnomad_no_call"] += results["population"].values.get("observation") == "no_call"
         p = None if features is None else float(model.predict([features])[0])
         reports.append(baseline_report(vid, p, findings, calibrated=True, summary=SUMMARY))
 
@@ -212,7 +219,8 @@ def build_reports(split_dir: Path | None = None,
         "features": {
             "evo2_delta": "evo2 tool delta (ALT minus REF, summed natural-log likelihood)",
             "phylop": "conservation tool phyloP 100-way score",
-            "gnomad_present": "1 if the population tool observed the variant with AC > 0, else 0",
+            "gnomad_present": "1 if the population tool observed the variant with AC > 0, else 0; a no-call "
+                              "site is a missing feature",
             "gnomad_log10_af": "log10 allele frequency when gnomad_present, else 0",
         },
         "fit": {

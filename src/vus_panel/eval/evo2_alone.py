@@ -27,6 +27,7 @@ from typing import Any
 import numpy as np
 
 from vus_panel.eval._baseline import baseline_report, evaluate, evo2_provenance, split_ids, tool_finding
+# The same tie rule auroc() uses, so tied deltas stay tied in p. Same owner, so the private reach-in is deliberate.
 from vus_panel.eval.metrics import _average_ranks
 from vus_panel.schemas import PanelReport, parse_variant_id
 from vus_panel.tools import evo2
