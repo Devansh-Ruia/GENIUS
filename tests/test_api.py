@@ -151,89 +151,18 @@ def test_page_opens_on_the_demo_reviews_and_labels_sae_as_planned():
     assert "sae (planned, not in this build)" in page
 
 
-# Frontend prototype preview of the SAE card (?preview=sae), with synthetic display data.
-# There is no JS runtime in the suite, so these read the page source; rendering is checked in a browser.
+# SAE in this build: mock values only in the sample reports; real reports keep it unavailable.
 
-def _function_body(page, name):
-    start = page.index(f"function {name}(")
-    end = page.index("\nfunction ", start + 1)
-    return page[start:end]
-
-
-def _code(page):
-    """The page without // comment lines, so counts see code only."""
-    return "\n".join(line for line in page.splitlines() if not line.strip().startswith("//"))
-
-
-GUARDED_CALL = ('    if (agent === "sae" && SAE_PREVIEW) {\n'
-                '      host.append(saePreviewCard(info));\n'
-                '      continue;\n'
-                '    }\n')
-
-
-def test_sae_preview_is_off_unless_the_url_asks_for_it():
-    page = _code(client.get("/").text)
-    assert 'const SAE_PREVIEW = new URLSearchParams(window.location.search).get("preview") === "sae";' in page
-    # Read in exactly two places: the page banner and the guard in renderEvidence. Nothing else can switch it on.
-    assert len(re.findall(r"\bSAE_PREVIEW\b", page)) == 3
-    assert 'document.getElementById("preview-banner").hidden = !SAE_PREVIEW;' in page
-    assert GUARDED_CALL in _function_body(page, "renderEvidence")
-
-
-def test_the_preview_card_has_one_call_site_behind_the_flag():
-    """A second call path, such as a fallback when the SAE finding is missing, must fail here."""
-    page = _code(client.get("/").text)
-    assert len(re.findall(r"saePreviewCard\(", page)) == 2  # the definition and the guarded call
-    assert page.count(GUARDED_CALL) == 1
-
-
-def test_synthetic_sae_features_are_fixed_generic_and_read_only_by_the_preview_card():
-    page = _code(client.get("/").text)
-    uses = [m.start() for m in re.finditer(r"SYNTHETIC_SAE_PREVIEW_FEATURES", page)]
-    assert len(uses) == 2  # the definition, and the loop in saePreviewCard
-    assert "SYNTHETIC_SAE_PREVIEW_FEATURES" in _function_body(page, "saePreviewCard")
-    fixture = page[uses[0]:page.index("]);", uses[0])]
-    assert fixture.count("Object.freeze({") == 3  # every entry frozen, not only the array
-    entries = re.findall(r"Object\.freeze\(\{([^}]*)\}\)", fixture)
-    assert len(entries) == 3
-    for entry in entries:
-        assert set(re.findall(r"(\w+)\s*:", entry)) == {"name", "shift"}  # no source, citation or URL
-        assert re.fullmatch(r'Example feature [A-Z]', re.search(r'name:\s*"([^"]*)"', entry).group(1))
-    for name in ("renderMatrix", "renderVerdict", "renderCard", "renderTracks", "setReports"):
-        body = _function_body(page, name)
-        assert "SAE_PREVIEW" not in body and "saePreviewCard" not in body, name
-
-
-def test_preview_card_appends_its_caption_and_never_reads_a_finding():
+def test_sae_card_shows_feature_shift_when_a_finding_has_one():
     page = client.get("/").text
-    assert 'const SAE_PREVIEW_CAPTION = "Prototype layout. Example values, not computed.";' in page
-    body = _function_body(page, "saePreviewCard")
-    assert 'card.append(el("p", { class: "preview-caption" }, SAE_PREVIEW_CAPTION));' in body
-    assert "(prototype preview)" in body
-    assert "finding" not in body and "report" not in body and "fetch" not in body
-    style = page[page.index("<style"):page.index("</style>")]
-    for rule in re.findall(r"[^{}]*\.preview-caption[^{}]*\{[^}]*\}", style):
-        assert not re.search(r"display:\s*none|visibility:\s*hidden|opacity:\s*0", rule), rule
+    assert 'valueKey: "feature_shift",' in page
+    assert 'valueLabel: "largest change in model feature activity",' in page
 
 
-def test_preview_mode_shows_a_page_notice_and_stays_off_paper():
+def test_the_page_has_no_synthetic_sae_preview():
     page = client.get("/").text
-    banner = re.search(r'<div id="preview-banner"[^>]*>([^<]*)</div>', page)
-    assert banner and " hidden>" in banner.group(0)  # hidden until the flag is read
-    assert "Prototype preview" in banner.group(1) and "not computed" in banner.group(1)
-    print_css = page[page.index("@media print"):page.index("@media print") + 4000]
-    assert ".preview-banner, .preview-card { display: none !important; }" in print_css
-    assert '"agent-card preview-card is-none"' in _function_body(page, "saePreviewCard")
-
-
-def test_default_mode_source_keeps_sae_unavailable_and_the_sample_notices():
-    page = client.get("/").text
-    evidence = _function_body(page, "renderEvidence")
-    assert "STATUS_LABEL[finding.status]" in evidence  # the unavailable path is unchanged
-    assert 'unavailable: "Evidence not available"' in page
-    assert 'const ROW_LABEL = { sae: "sae (planned, not in this build)" };' in page
-    assert 'document.getElementById("mock-banner").hidden = !state.reports.some(isMock);' in page
-    assert '"Sample report"' in page
+    for leftover in ("SAE_PREVIEW", "SYNTHETIC_SAE", "preview-banner", "preview=sae", "Example feature"):
+        assert leftover not in page, leftover
 
 
 def test_saved_demo_reports_still_show_sae_unavailable():
@@ -243,11 +172,10 @@ def test_saved_demo_reports_still_show_sae_unavailable():
     reports = api.load_demo(api.DEMO_PATH)
     sae = [f for r in reports for f in [*r.findings_initial, *r.findings_after_rebuttal] if f.agent == "sae"]
     assert sae and all(f.status == "unavailable" and f.verdict is None and not f.raw_values for f in sae)
-    assert "Example feature" not in api.DEMO_PATH.read_text(encoding="utf-8")
+    assert "feature_shift" not in api.DEMO_PATH.read_text(encoding="utf-8")
 
 
-def test_synthetic_preview_data_lives_only_in_the_page():
-    from vus_panel import config
-    for path in (config.REPO_ROOT / "src").rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        assert "SYNTHETIC_SAE" not in text and "Example feature" not in text, path
+def test_default_review_keeps_sae_unavailable():
+    response = client.post("/review", json=PLACEHOLDER)
+    sae = [f for f in response.json()["findings_initial"] if f["agent"] == "sae"]
+    assert response.status_code == 200 and sae and sae[0]["status"] == "unavailable" and not sae[0]["raw_values"]

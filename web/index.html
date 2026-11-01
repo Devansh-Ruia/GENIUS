@@ -183,10 +183,6 @@
   .agent-card .said.is-uncertain { color: var(--base-g); }
   .agent-card .said.is-none { color: var(--ink-soft); }
   .agent-card .why { font-size: 0.875rem; color: var(--ink-soft); margin: 0; }
-  .agent-card .preview-caption { font-size: 0.8125rem; color: var(--ink-soft); margin: 0 0 0.6rem; }
-  .preview-banner { background: var(--raised); color: var(--ink); border-bottom: 2px solid var(--base-g); text-align: center; font-size: 0.9375rem; padding: 0.55rem 1.5rem; }
-  .preview-banner[hidden] { display: none; }
-  .agent-card .preview-features { list-style: none; padding: 0; margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 0.875rem; }
   .agent-card .revision { font-size: 0.8125rem; margin: 0.7rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--rule-soft); color: var(--base-g); }
 
   .stage-toggle { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1rem; font-size: 0.9375rem; }
@@ -262,8 +258,6 @@
     header, main, footer { max-width: none; padding: 0; }
     #start, #track-section, #ask-section, .theme, .step .n, details summary,
     .secondary-actions, #status, .print-button { display: none !important; }
-    /* The SAE prototype preview is screen-only: its example values never reach paper. */
-    .preview-banner, .preview-card { display: none !important; }
     section { border-top: none; padding: 0 0 1.1rem; break-inside: avoid; }
     section[hidden] { display: none; }
     .bases { margin-bottom: 0.6rem; }
@@ -304,7 +298,6 @@
 </head>
 <body>
 <div id="mock-banner" class="mock-banner" role="alert" hidden>Sample data. At least one report on this page is a sample and must not inform any decision.</div>
-<div id="preview-banner" class="preview-banner" role="status" hidden>Prototype preview. The Model features card shows example values for layout only. They are not computed, are not part of any report, and are left out of print.</div>
 
 <header>
   <div class="bases" aria-hidden="true"><i style="background:var(--base-a)"></i><i style="background:var(--base-c)"></i><i style="background:var(--base-g)"></i><i style="background:var(--base-t)"></i></div>
@@ -415,23 +408,6 @@
 
 const AGENTS = ["evo2", "sae", "conservation", "population"];
 const ROW_LABEL = { sae: "sae (planned, not in this build)" };
-
-// Frontend prototype preview of the planned SAE card, for layout work only.
-// Off by default; only the URL query ?preview=sae turns it on. The SAE agent still
-// returns unavailable, and nothing from the server can turn this on.
-// SYNTHETIC_SAE_PREVIEW_FEATURES is hand-written display data, not model output.
-// The feature names carry no claimed biological meaning and the shifts are not
-// results. It is read only by saePreviewCard(), and never enters state.reports,
-// findings, the agreement matrix, the verdict, saved reports or any request.
-const SAE_PREVIEW = new URLSearchParams(window.location.search).get("preview") === "sae";
-const SYNTHETIC_SAE_PREVIEW_FEATURES = Object.freeze([
-  Object.freeze({ name: "Example feature A", shift: -0.42 }),
-  Object.freeze({ name: "Example feature B", shift: 0.18 }),
-  Object.freeze({ name: "Example feature C", shift: -0.07 }),
-]);
-const SAE_PREVIEW_CAPTION = "Prototype layout. Example values, not computed.";
-// Preview mode always shows a page-level notice, because the card can sit inside a real report.
-document.getElementById("preview-banner").hidden = !SAE_PREVIEW;
 const CALLS = new Set(["likely_damaging", "likely_tolerated", "unresolved"]);
 const VERDICTS = new Set(["damaging", "tolerated", "uncertain"]);
 
@@ -468,8 +444,10 @@ const AGENT_INFO = {
   sae: {
     title: "Model features",
     asks: "Which patterns inside that model react here, and does the change disturb them?",
-    valueKey: null,
-    valueLabel: "",
+    // Shown only when an SAE finding carries feature_shift. In this build that is only the
+    // sample reports in data/fixtures/ (mock: true); the real SAE tool returns unavailable.
+    valueKey: "feature_shift",
+    valueLabel: "largest change in model feature activity",
   },
   conservation: {
     title: "Evolutionary conservation",
@@ -800,12 +778,6 @@ function renderEvidence() {
 
   for (const agent of AGENTS) {
     const info = AGENT_INFO[agent];
-    // Preview mode depends on the URL flag alone, never on the finding, so a backend
-    // failure can't show the synthetic card. The real SAE finding is left as it is.
-    if (agent === "sae" && SAE_PREVIEW) {
-      host.append(saePreviewCard(info));
-      continue;
-    }
     const finding = findings.get(agent);
     const verdict = finding && finding.status === "ok" ? finding.verdict : null;
     const card = el("div", { class: `agent-card ${verdict ? `is-${verdict}` : "is-none"}` });
@@ -840,21 +812,6 @@ function renderEvidence() {
     }
     host.append(card);
   }
-}
-
-// The prototype SAE card, drawn only in preview mode, always from the synthetic fixture.
-function saePreviewCard(info) {
-  const card = el("div", { class: "agent-card preview-card is-none" });
-  card.append(el("h3", {}, `${info.title} (prototype preview)`));
-  card.append(el("p", { class: "asks" }, info.asks));
-  card.append(el("p", { class: "preview-caption" }, SAE_PREVIEW_CAPTION));
-  const list = el("ul", { class: "preview-features" });
-  for (const feature of SYNTHETIC_SAE_PREVIEW_FEATURES) {
-    const sign = feature.shift > 0 ? "+" : feature.shift < 0 ? "-" : "";
-    list.append(el("li", {}, `${feature.name}: activation shift ${sign}${Math.abs(feature.shift).toFixed(2)}`));
-  }
-  card.append(list);
-  return card;
 }
 
 function pairState(first, second) {

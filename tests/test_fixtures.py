@@ -59,3 +59,17 @@ def test_loader_rejects_non_mock_and_too_many(tmp_path):
     path.write_text(json.dumps(reports + [reports[0]]), encoding="utf-8")
     with pytest.raises(FixtureError, match="limit"):
         load_fixtures(path)
+
+
+def test_sample_findings_carry_mock_values_shaped_like_real_ones(fixtures):
+    """Every agent in a sample report looks alike on screen: a mock value and a [MOCK] explanation."""
+    for r in fixtures:
+        for f in [*r.findings_initial, *r.findings_after_rebuttal]:
+            assert f.rationale.startswith("[MOCK]"), (r.variant_id, f.agent)
+            if f.status != "ok":
+                assert not f.raw_values
+                continue
+            assert f.raw_values and f.sources == ["mock"], (r.variant_id, f.agent)
+            if f.agent == "sae":
+                assert set(f.raw_values) == {"feature_shift"}
+                assert isinstance(f.raw_values["feature_shift"], float)
