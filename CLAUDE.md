@@ -61,7 +61,7 @@ No linter, formatter or type checker is configured. `python -m vus_panel.scoring
   That closure includes `schemas.py`, `config.py`, `llm.py`, `agents/_common.py`, `agents/_interpret.py` and `scoring/client.py`, so keep these constructs out of shared modules too.
 - **Model strings** (`tests/test_llm.py`): `src/` must not match `claude-|opus|sonnet|haiku|fable`, case-insensitive. Get the model with `vus_panel.llm.get_model()`, which reads `ANTHROPIC_MODEL`.
 - **Reference data** (`tests/test_reference_data.py`): every file in `data/reference/` has a `MANIFEST.json` entry whose sha256 and size match, is under 50 MiB, and has a non-empty source and license.
-- **Fixtures**: `data/fixtures/` holds at most five reports, all `mock: true`, for UI work only. The page shows a MOCK DATA banner for them, and `run_eval` refuses them.
+- **Fixtures**: `data/fixtures/` holds at most five reports, all `mock: true`, for UI work only. The page shows them under a "Sample data" banner, and `run_eval` refuses them.
 
 ## Data and git
 
