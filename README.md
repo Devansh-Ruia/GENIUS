@@ -1,17 +1,17 @@
 # GENIUS
 
-A multi-agent panel that reviews BRCA1 variants of uncertain significance. This repo is a hackathon scaffold: the contracts, stubs and wiring are in place, no model agent is implemented, and there are no results yet.
+A multi-agent panel that reviews BRCA1 variants of uncertain significance, built at a hackathon. The evidence agents, the rebuttal round and the chair call an LLM. Evo 2 7B scored the calibration and test splits on a GPU, and two baselines were evaluated on the held-out test split (see [Results](#results)). The panel itself has run only on three calibration-split variants, saved in `data/demo/panel_reports.json`, and has never been evaluated on the test split. The SAE agent is not built: it always reports unavailable.
 
 ## Problem
 
-Almost one in five genetic tests returns a variant of uncertain significance, or VUS (citation needed), and patients often read it as high cancer risk even though ACMG guidelines say no clinical decision should rest on a VUS (Richards et al. 2015, Genet Med 17(5):405-424, doi:10.1038/gim.2015.30).
+ACMG guidelines say no clinical decision should rest on a variant of uncertain significance, or VUS (Richards et al. 2015, Genet Med 17(5):405-424, doi:10.1038/gim.2015.30).
 
 ## Solution
 
 A panel of LLM agents reviews one BRCA1 single-nucleotide variant. Each agent is restricted to one evidence type:
 
 - `evo2`: log-likelihood delta (alt minus ref) from Evo 2 7B
-- `sae`: Goodfire SAE feature activations at the variant position on Evo 2 7B
+- `sae`: planned, Goodfire SAE feature activations at the variant position on Evo 2 7B. No branch computes them yet, so the sae tool always reports unavailable. Branch `d` adds mock SAE values to its sample reports for UI work, and that is not on main.
 - `conservation`: per-base conservation score at the position, from a local cached file
 - `population`: gnomAD allele frequency, from a local cached file
 
@@ -66,15 +66,16 @@ Serve the API and the page:
 .venv/bin/python -m uvicorn vus_panel.api:app --reload       # macOS and Linux
 ```
 
-Open http://127.0.0.1:8000. "Load fixtures" shows the five mock reports under a MOCK DATA banner. The review form posts a variant to `POST /review`, which returns `call: "unresolved"` with four unavailable findings until the agents are implemented.
+Open http://127.0.0.1:8000. The page opens on the three saved real reviews in `data/demo/` (`GET /demo`), and "Load sample reports" shows the five mock reports in `data/fixtures/` under a "Sample data" banner. The review form posts a variant to `POST /review`, which runs the four agents, the rebuttal round and the chair. Without `ANTHROPIC_API_KEY` or `ANTHROPIC_MODEL`, no agent gives a verdict: one whose tool returned evidence reports unavailable, and the call is `unresolved`. The evo2 agent also needs `EVO2_SCORES_DIR` (for variants in a stored run) or `EVO2_BACKEND_URL`, the conservation and population agents need the `data/cache/` files that `scripts/` builds, and the sae agent always reports unavailable. The question box sends questions about the panel to `POST /explain`.
 
-Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. `.venv/Scripts/python -m vus_panel.serve` (or `.venv/bin/python`) loads `.env` and starts the server on :8000. A value already set in your shell wins, and only variable names are printed. Plain `uvicorn` does not read `.env`. The page opens on the saved real reviews in `data/demo/`.
+Configuration comes from environment variables. Copy `.env.example` to `.env` and fill it in. `.venv/Scripts/python -m vus_panel.serve` (or `.venv/bin/python`) loads `.env` and starts the server on :8000. A value already set in your shell wins, and only variable names are printed. Plain `uvicorn` does not read `.env`.
 
 | Variable | Used for |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | agent LLM calls |
+| `ANTHROPIC_API_KEY` | LLM calls by the agents, the chair, the single-agent baseline and `POST /explain` |
 | `ANTHROPIC_MODEL` | the model name, read at runtime and never hardcoded |
-| `EVO2_BACKEND_URL` | URL of the Evo 2 and SAE scoring service on the Brev instance |
+| `EVO2_BACKEND_URL` | URL of the Evo 2 scoring service (`scoring/service.py`) on the GPU instance. The sae tool sends it no request |
+| `EVO2_SCORES_DIR` | a stored Evo 2 run directory, or a folder of them, such as `runs/` on the machine that scored the splits. The evo2 tool reads a variant's stored delta from here before it tries `EVO2_BACKEND_URL` |
 
 Small reference files that every teammate needs are committed in `data/reference/`. Each one has an entry in `data/reference/MANIFEST.json` with its path, source URL, release or version, download date, genome build, license as stated by the source, sha256, size in bytes and owner branch. `tests/test_reference_data.py` fails if a file has no entry, a checksum or size doesn't match, a file is over 50 MiB, or an entry has an empty source or license. The repo is public, so add only files whose license allows public redistribution, and never model weights, SAE weights or genome-wide files. Full-size downloads stay in the gitignored `data/raw/` and `data/cache/`.
 
@@ -98,27 +99,37 @@ Score a set of real (non-mock) reports on the test split:
 
 ```
 README.md
-pyproject.toml
-.env.example              ANTHROPIC_API_KEY, ANTHROPIC_MODEL, EVO2_BACKEND_URL (empty)
+CLAUDE.md, AGENTS.md      instructions for Claude Code and Codex
+pyproject.toml, uv.lock
+.env.example              ANTHROPIC_API_KEY, ANTHROPIC_MODEL, EVO2_BACKEND_URL, EVO2_SCORES_DIR (empty)
 .gitignore                .env, data/raw/, data/cache/, runs/, Python tooling
-.gitattributes            data/reference/ files are stored and checked out byte for byte
+.gitattributes            data/reference/ and data/splits/ files are stored and checked out byte for byte
 src/vus_panel/
   schemas.py              the contracts below
   config.py               repo paths and env getters
   llm.py                  Anthropic client; model name from ANTHROPIC_MODEL
   tools/                  one module per evidence source: evo2, sae, conservation, population
-  agents/                 evo2, sae, conservation, population, chair, single_agent
+  agents/                 evo2, sae, conservation, population, chair, single_agent, and the shared _common.py and _interpret.py
   orchestrator.py         four agents, one rebuttal round, then the chair
-  eval/                   split.py, metrics.py, run_eval.py
-  api.py                  GET /, POST /review, GET /fixtures
+  explain.py              answers questions about the panel for POST /explain
+  scoring/                Evo 2 scoring: wire contracts, the CPU client, and the GPU backend and service
+  eval/                   split.py, metrics.py, run_eval.py, the timing pilot (pilot*.py, findlay_validation.py),
+                          score_split.py, and the evo2_alone.py and logistic_baseline.py baselines with their shared _baseline.py
+  api.py                  GET /, POST /review, GET /fixtures, GET /demo, POST /explain
+  serve.py                loads .env, then starts the API
+scripts/                  build and check the phyloP and gnomAD caches, and build calibration_refs.json, in data/cache/
 web/index.html            the output screen: vanilla JS, inline SVG, no build step
-data/splits/              committed variant-ID lists only
+data/splits/              committed variant-ID lists, split_meta.json and pilot20.json
 data/fixtures/            mock PanelReports for UI work only
+data/demo/                saved real panel reviews the page opens with
 data/reference/           small tracked reference files, each listed with its sha256 in MANIFEST.json
+docs/                     findlay-evo2-pilot.md (Evo 2 pilot and split scoring), mermaid-diagram.png, and
+                          results/ (committed run records and metrics)
 runs/                     run outputs with config, seed, git commit, timestamp (not committed)
 tests/
 .claude/agents/           Claude Code subagents: evidence-models and orchestration-eval (d), evidence-data (a), demo-pitch (k), frontend (m), the checker, and maker
 .claude/hooks/            the checker's Bash guard
+.codex/agents/            Codex configuration for the same roles
 ```
 
 ## Contracts
@@ -147,7 +158,7 @@ Tools return a `ToolResult` with the same rule: no values unless status is `"ok"
 | --- | --- | --- | --- |
 | d | Devansh | Evo 2/SAE scoring service, Findlay loader and splits, orchestrator, `chair.py`, `api.py`, single-agent baseline, Evo 2-alone and logistic baselines, eval | evidence-models, orchestration-eval |
 | a | Teammate A | phyloP and gnomAD caches for the BRCA1 region in GRCh37, with a five-position hand spot-check | evidence-data |
-| k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script, a source for the "one in five" claim | demo-pitch (owns `docs/demo/`, no code) |
+| k | Teammate K | Step 2 vulnerability table from FDA labels, three demo variants from the calibration split, pitch deck and demo script | demo-pitch (owns `docs/demo/`, no code) |
 | m | Teammate M | Output screen against fixtures, report card renamed for tumor boards, second-hit input field | frontend (owns `web/` only) |
 
 Merge rule: PR into main, and run the checker subagent on the diff before merging.
@@ -175,30 +186,61 @@ Change these only in a PR that every affected owner has reviewed.
 
 ## What is mocked and what is real right now
 
-Real and tested:
-- schemas and their validation
-- orchestrator wiring: four runs, four rebuttals, the chair, error capture, answer-key removal
-- the split code, tested on small placeholder workbooks but not yet on the real Findlay file
-- metrics and the eval guards
-- the API and the output screen
+Real, on main:
+- **The split.** `eval/split.py` built it from the real Findlay workbook, which stays out of git. The ID lists and `split_meta.json` are committed in `data/splits/`.
+- **Evo 2 7B scores for the calibration and test splits**, computed on a GPU by `eval/score_split.py`. The per-variant scores stay in the gitignored `runs/`, except that the three demo reviews in `data/demo/` show the stored deltas for their own variants. The two run records are in `docs/results/`. With `EVO2_SCORES_DIR` pointing at those runs, the evo2 tool reads the scores back.
+- **The conservation and population tools.** They read phyloP 100-way and gnomAD v2.1.1 caches that `scripts/` builds in the gitignored `data/cache/`, so a fresh clone has neither until the scripts run.
+- **The LLM layer.** The evidence agents, the rebuttal round, the chair, the single-agent baseline and `POST /explain` call the model named in `ANTHROPIC_MODEL`. Without a key or a model, no agent gives a verdict: one whose tool returned evidence reports unavailable, and the chair returns `unresolved`.
+- **Two test-split baselines**, Evo 2 alone and a logistic regression, evaluated through `run_eval`. See [Results](#results).
+- **Three live panel reviews** of calibration-split variants, saved in `data/demo/panel_reports.json`. The page opens on them.
 
-Stubbed, always returning status `"unavailable"` and never a value:
-- all four tools
-- evidence agent interpretation and rebuttal revision
-- chair reasoning (every report is `"unresolved"`)
-- the single-agent baseline
+Not built:
+- **The SAE agent.** There is no SAE backend, so the sae tool always returns unavailable and the agent never gives a verdict.
+- **Panel and single-agent evaluation.** Neither has been run through `run_eval` on the test split.
+- **Calibrated panel confidence.** The chair's confidence is the model's own judgement, so panel reports carry `calibrated: false`.
 
-Mock: `data/fixtures/panel_reports.json` holds five reports, all `mock: true`, for UI work. The page shows a MOCK DATA banner whenever one is on screen.
-
-Not present yet: the Findlay file, cache files, split files and any run in `runs/`. No LLM call is made anywhere.
+Mock: `data/fixtures/panel_reports.json` holds five reports, all `mock: true`, for UI work. "Load sample reports" shows them under a "Sample data" banner, and `run_eval` refuses them. Three of the five give the SAE agent a verdict. That is placeholder text with no values behind it, not SAE output.
 
 ## Known risks
 
-- **GPU access for evo2 and sae**: Evo 2 7B needs an FP8-capable GPU. Until a backend is up at `EVO2_BACKEND_URL`, both agents stay unavailable and the panel has two evidence types, not four.
+- **GPU access for evo2 and sae**: Evo 2 7B needs an FP8-capable GPU. The calibration and test splits are already scored, and with `EVO2_SCORES_DIR` pointing at those runs the evo2 tool reads the stored scores without a GPU. The runs stay in the gitignored `runs/`, so on any other machine, or for a variant outside the splits, evo2 needs a live backend at `EVO2_BACKEND_URL`. The sae agent has no backend at all, so the panel has at most three evidence types, not four.
 - **ClinVar leakage**: ClinVar must not be an input for any test-split variant. `run_eval` refuses findings that cite it, but an LLM may still recall ClinVar classifications for well-known BRCA1 variants from training, and a source check can't catch that.
 - **Genome-build mismatch**: Findlay positions are GRCh37, and some gnomAD releases are GRCh38. There is no liftover step, so the tools return an error instead of comparing positions across builds, and the page draws one track per build.
 - **Uncalibrated confidence**: a confidence an LLM states is not a probability. Reports carry `calibrated: false` until a calibration is fit on the calibration split, and the page draws those points as hollow rings.
 
 ## Results
 
-No results yet.
+Every number in this section comes from a committed file: the split metadata in `data/splits/`, and the run records and metrics copied into `docs/results/`. The run folders themselves stay in the gitignored `runs/`. Nothing in `docs/results/` holds per-variant Findlay scores, function classes or Evo 2 deltas. The only per-variant Evo 2 values committed anywhere are in the three demo reviews in `data/demo/panel_reports.json`, for their calibration-split variants.
+
+### Split
+
+From [`data/splits/split_meta.json`](data/splits/split_meta.json): 779 calibration variants (`n_calibration`) and 3,114 test variants (`n_test`), 3,893 in all (`n_calibration` + `n_test`).
+
+### Frozen before scoring
+
+- The split was written at 2026-10-31 19:35:28 UTC (`created_at` in [`split_meta.json`](data/splits/split_meta.json)).
+- Evo 2 scoring started at 2026-11-01 00:16:59 UTC for the calibration split and at 2026-11-01 00:30:31 UTC for the test split (`sessions[0].started_at` in the [calibration](docs/results/20261101T001659Z-calibration-24f24f1172b3/run_record.json) and [test](docs/results/20261101T003031Z-test-54501907591e/run_record.json) run records).
+
+### Evo 2 7B scoring
+
+| Split | Run record | Final outcomes (`sessions[0].scored`) | IDs in split (`selection.n_variants`) | Commit (`code.git_commit`) | Working tree (`code.dirty`) |
+| --- | --- | ---: | ---: | --- | --- |
+| Calibration | [20261101T001659Z-calibration-24f24f1172b3](docs/results/20261101T001659Z-calibration-24f24f1172b3/run_record.json) | 779 | 779 | `b13e463` | clean (`false`) |
+| Test | [20261101T003031Z-test-54501907591e](docs/results/20261101T003031Z-test-54501907591e/run_record.json) | 3,114 | 3,114 | `b13e463` | clean (`false`) |
+
+Each run finished in one session, with top-level `state` "completed" and `error` null. `scored` counts every final outcome, and a backend error about the variant also counts as final. The records hold no separate error or retry count. Every test variant does have a delta: the Evo 2-alone evaluation below resolved all of them (`coverage` 1.0).
+
+### Test-split evaluation
+
+Scored by `eval/run_eval.py` with LOF positive and FUNC plus INT negative.
+
+| System | AUROC (`auroc_resolved`) | Coverage (`coverage`) | Evaluated (`n_evaluated`) | Test split (`n_test_split`) | Run ID | Commit (`git_commit`) |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Evo 2 alone | 0.872 | 1.0 | 3,114 | 3,114 | `evo2_alone-20261101T165910Z` ([metrics](docs/results/evo2_alone-20261101T165910Z/metrics.json), [run record](docs/results/evo2_alone-20261101T165910Z/run_record.json)) | `53e033b` |
+| Logistic baseline | 0.890 | 1.0 | 3,114 | 3,114 | `logistic_baseline-20261101T165922Z` ([metrics](docs/results/logistic_baseline-20261101T165922Z/metrics.json), [run record](docs/results/logistic_baseline-20261101T165922Z/run_record.json)) | `53e033b` |
+
+Both runs scored the same `test.txt`, sha256 `a8c4ef203397af385521c41078055b8aef7f48502f52526714927d44321ed348` (`test_split_sha256` in each `metrics.json`), from a clean tree (`config.git_dirty` false in each run record).
+
+- The logistic baseline's 0.018 lead over Evo 2 alone was not significance-tested.
+- Evo 2 alone turns minus delta into a rank so `run_eval` has a probability to read. The reliability bins and ECE in its `metrics.json` therefore mean nothing, and they are not reported here.
+- The panel and the single-agent baseline were never evaluated on the test split.

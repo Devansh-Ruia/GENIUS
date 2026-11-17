@@ -1,0 +1,87 @@
+{
+  "label_rule": "LOF positive; FUNC and INT negative",
+  "auroc_resolved": 0.8900075987841946,
+  "coverage": 1.0,
+  "n_resolved": 3114,
+  "n_total": 3114,
+  "n_calibrated": 3114,
+  "reliability": {
+    "bins": [
+      {
+        "lower": 0.0,
+        "upper": 0.1,
+        "count": 1625,
+        "mean_predicted": 0.0500425488571619,
+        "observed_rate": 0.030153846153846153
+      },
+      {
+        "lower": 0.1,
+        "upper": 0.2,
+        "count": 506,
+        "mean_predicted": 0.1429927194403213,
+        "observed_rate": 0.1600790513833992
+      },
+      {
+        "lower": 0.2,
+        "upper": 0.3,
+        "count": 232,
+        "mean_predicted": 0.2461011514483297,
+        "observed_rate": 0.2801724137931034
+      },
+      {
+        "lower": 0.3,
+        "upper": 0.4,
+        "count": 184,
+        "mean_predicted": 0.3470209866414082,
+        "observed_rate": 0.3641304347826087
+      },
+      {
+        "lower": 0.4,
+        "upper": 0.5,
+        "count": 145,
+        "mean_predicted": 0.4449542825493683,
+        "observed_rate": 0.5655172413793104
+      },
+      {
+        "lower": 0.5,
+        "upper": 0.6,
+        "count": 109,
+        "mean_predicted": 0.5520387895902736,
+        "observed_rate": 0.5871559633027523
+      },
+      {
+        "lower": 0.6,
+        "upper": 0.7,
+        "count": 83,
+        "mean_predicted": 0.6426242154378645,
+        "observed_rate": 0.7710843373493976
+      },
+      {
+        "lower": 0.7,
+        "upper": 0.8,
+        "count": 50,
+        "mean_predicted": 0.750375926996933,
+        "observed_rate": 0.74
+      },
+      {
+        "lower": 0.8,
+        "upper": 0.9,
+        "count": 74,
+        "mean_predicted": 0.853824704608613,
+        "observed_rate": 0.7432432432432432
+      },
+      {
+        "lower": 0.9,
+        "upper": 1.0,
+        "count": 106,
+        "mean_predicted": 0.9595855321513344,
+        "observed_rate": 0.8867924528301887
+      }
+    ],
+    "ece": 0.0322437312654587,
+    "n": 3114
+  },
+  "n_test_split": 3114,
+  "n_evaluated": 3114,
+  "test_split_sha256": "a8c4ef203397af385521c41078055b8aef7f48502f52526714927d44321ed348"
+}
